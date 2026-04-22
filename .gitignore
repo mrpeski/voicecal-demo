@@ -225,4 +225,5 @@ products_vectorstore/
 # ignore diagnostics reports
 **/report.txt
 
-
+token.json
+credentials.json

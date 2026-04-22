@@ -1,6 +1,7 @@
-"""Typed tool definitions for the calendar agent using the OpenAI Agents SDK.
+"""Typed tool definitions for the calendar agent.
 
-The @function_tool decorator derives the schema from type hints + docstring.
+Tools delegate to voicecal.calendar for real Google Calendar calls when
+settings.mock_providers is False, otherwise use an in-memory dict.
 """
 
 from __future__ import annotations
@@ -9,10 +10,26 @@ import uuid
 
 from agents import function_tool
 
+from voicecal import calendar as gcal
 from voicecal.errors import NotFoundError
+from voicecal.settings import settings
 
-# In-memory calendar – replaced in Phase 2.
+# In-memory calendar used only when settings.mock_providers is True.
 _events: dict[str, dict] = {}
+
+
+def _normalize(ev: dict) -> dict:
+    """Convert a Google Calendar event dict to our flat shape."""
+    start = ev.get("start", {})
+    end = ev.get("end", {})
+    return {
+        "id": ev["id"],
+        "title": ev.get("summary", "Untitled"),
+        "start": start.get("dateTime") or start.get("date", ""),
+        "end": end.get("dateTime") or end.get("date", ""),
+        "attendees": [a["email"] for a in ev.get("attendees", []) if "email" in a],
+        "description": ev.get("description"),
+    }
 
 
 @function_tool
@@ -23,7 +40,11 @@ async def list_events(time_range_start: str, time_range_end: str) -> list[dict]:
         time_range_start: ISO 8601 datetime, inclusive.
         time_range_end: ISO 8601 datetime, exclusive.
     """
-    return sorted(_events.values(), key=lambda e: e["start"])
+    if settings.mock_providers:
+        return sorted(_events.values(), key=lambda e: e["start"])
+
+    items = await gcal.list_events(time_range_start, time_range_end)
+    return [_normalize(ev) for ev in items]
 
 
 @function_tool
@@ -43,17 +64,21 @@ async def create_event(
         attendees: Attendee email addresses.
         description: Optional description.
     """
-    event_id = str(uuid.uuid4())
-    ev = {
-        "id": event_id,
-        "title": title,
-        "start": start,
-        "end": end,
-        "attendees": attendees or [],
-        "description": description,
-    }
-    _events[event_id] = ev
-    return ev
+    if settings.mock_providers:
+        event_id = str(uuid.uuid4())
+        ev = {
+            "id": event_id,
+            "title": title,
+            "start": start,
+            "end": end,
+            "attendees": attendees or [],
+            "description": description,
+        }
+        _events[event_id] = ev
+        return ev
+
+    created = await gcal.create_event(title, start, end, attendees, description)
+    return _normalize(created)
 
 
 @function_tool
@@ -73,18 +98,22 @@ async def update_event(
         end: New end time.
         attendees: New attendee list.
     """
-    if event_id not in _events:
-        raise NotFoundError(f"Event {event_id} not found")
-    ev = _events[event_id]
-    if title is not None:
-        ev["title"] = title
-    if start is not None:
-        ev["start"] = start
-    if end is not None:
-        ev["end"] = end
-    if attendees is not None:
-        ev["attendees"] = attendees
-    return ev
+    if settings.mock_providers:
+        if event_id not in _events:
+            raise NotFoundError(f"Event {event_id} not found")
+        ev = _events[event_id]
+        if title is not None:
+            ev["title"] = title
+        if start is not None:
+            ev["start"] = start
+        if end is not None:
+            ev["end"] = end
+        if attendees is not None:
+            ev["attendees"] = attendees
+        return ev
+
+    updated = await gcal.update_event(event_id, title, start, end, attendees)
+    return _normalize(updated)
 
 
 TOOLS = [list_events, create_event, update_event]
