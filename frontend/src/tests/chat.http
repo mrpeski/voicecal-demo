@@ -4,7 +4,7 @@ POST http://localhost:8000/api/chat HTTP/1.1
 Content-Type: application/json
 
 {
-  "message": "what's on my calendar this week?"
+  "message": "what's was the first event today?"
 }
 
 

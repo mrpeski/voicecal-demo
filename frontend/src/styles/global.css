@@ -1,0 +1,125 @@
+/* ─── Font import ───────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&family=DM+Mono:wght@300;400&display=swap');
+
+/* ─── Reset ─────────────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── CSS variables (dark theme defaults) ───────────────────────────────── */
+:root {
+  --bg: #0c0c0f;
+  --surface: #14141a;
+  --surface2: #1c1c24;
+  --surface3: #24242e;
+  --border: #28283a;
+  --border2: #34344a;
+  --text: #e6e6f0;
+  --text2: #8888a8;
+  --text3: #48486a;
+  --accent: oklch(68% 0.16 255);
+  --accent-glow: oklch(68% 0.16 255 / 0.2);
+  --accent-dim: oklch(68% 0.16 255 / 0.12);
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────── */
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  overflow: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+#root {
+  height: 100%;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 4px;
+}
+
+/* ─── Focus styles for form controls ────────────────────────────────────── */
+input:focus,
+select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* ─── Animations ────────────────────────────────────────────────────────── */
+@keyframes wave {
+  from {
+    height: 4px;
+  }
+  to {
+    height: 22px;
+  }
+}
+
+@keyframes bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 14px transparent;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes speakPulse {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
+  }
+}
