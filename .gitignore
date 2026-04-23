@@ -227,3 +227,6 @@ products_vectorstore/
 
 token.json
 credentials.json
+
+chroma/
+sessions.db
