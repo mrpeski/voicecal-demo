@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { COLORS, INITIAL_EVENTS, TWEAK_DEFAULTS } from './constants';
 import { cleanText, genId, parseEventBlocks, todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
-import useSpeechRecognition from './hooks/useSpeechRecognition';
+import { useVoiceInteraction } from './hooks/useVoiceInteraction';
 import useSpeechSynthesis from './hooks/useSpeechSynthesis';
 
 import Header from './components/Header';
@@ -141,15 +141,9 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
   // Note: onUnsupported falls back to showing the text input on Zen view
   // by toggling listening off — the ZenView reveals keyboard-mode on its own button.
   const setActiveResult = mode === 'plan' ? setPlanResult : setZenResult;
-  const { listening, start: startListening, stop: stopListening } = useSpeechRecognition({
-    onInterim: (t) => setActiveResult({ state: 'listening', transcript: t }),
-    onFinal: (final) => {
-      if (final) processQuery(final, final);
-      else setActiveResult(null);
-    },
-    onUnsupported: () => {
-      // Caller (ZenView) already provides a keyboard fallback — nothing extra to do here.
-    },
+
+  const { recording: listening, pending, start: startListening, stop: stopListening } = useVoiceInteraction({
+    onResult: (data) => setActiveResult(data)
   });
 
   function handleMicClick() {

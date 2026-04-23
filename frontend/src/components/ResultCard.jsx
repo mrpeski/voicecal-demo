@@ -1,4 +1,3 @@
-import React from 'react';
 import { COLORS } from '../constants';
 import { formatDate, formatTime, mdToHtml } from '../utils';
 

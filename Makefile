@@ -35,7 +35,7 @@ frontend-install:
 .PHONY: frontend-dev
 frontend-dev:
 	@echo "Starting frontend development server..."
-	cd frontend && pnpm dev
+	cd frontend && pnpm dev --host
 
 # Full dev (both backend & frontend)
 .PHONY: dev

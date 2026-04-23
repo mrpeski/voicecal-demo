@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { COLORS } from '../constants';
 import { formatDate, formatTime } from '../utils';
 import ResultCard from './ResultCard';
@@ -42,32 +42,44 @@ export default function ZenView({
       >
         {/* Greeting / result area */}
         <div style={{ minHeight: 60 }}>
-          {result ? (
-            <ResultCard
-              key={result.state === 'done' ? result.text : 's'}
-              result={result}
-              onDismiss={result.state === 'done' ? onDismissResult : undefined}
-            />
-          ) : (
-            <div
-              style={{
-                textAlign: 'center',
-                color: 'var(--text3)',
-                fontSize: 13,
-                animation: 'fadeIn 0.5s ease',
-              }}
-            >
-              {tweaks.userName !== 'User'
-                ? `Hi, ${tweaks.userName}.`
-                : 'Tap the mic to get started.'}
-            </div>
-          )}
+          {/* {result ? ( */}
+          {/*   <ResultCard */}
+          {/*     key={result.state === 'done' ? result.text : 's'} */}
+          {/*     result={result} */}
+          {/*     onDismiss={result.state === 'done' ? onDismissResult : undefined} */}
+          {/*   /> */}
+          {/* ) : ( */}
+          {/*   <div */}
+          {/*     style={{ */}
+          {/*       textAlign: 'center', */}
+          {/*       color: 'var(--text3)', */}
+          {/*       fontSize: 13, */}
+          {/*       animation: 'fadeIn 0.5s ease', */}
+          {/*     }} */}
+          {/*   > */}
+          {/*     {tweaks.userName !== 'User' */}
+          {/*       ? `Hi, ${tweaks.userName}.` */}
+          {/*       : 'Tap the mic to get started.'} */}
+          {/*   </div> */}
+          {/* )} */}
+
+          <div
+            style={{
+              textAlign: 'center',
+              color: 'var(--text3)',
+              fontSize: 13,
+              animation: 'fadeIn 0.5s ease',
+            }}
+          >
+            {tweaks.userName !== 'User'
+              ? `Hi, ${tweaks.userName}.`
+              : 'Tap the mic to get started.'}
+          </div>
         </div>
 
         {/* Mic and waveform */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <Waveform active={listening} />
-
           <button
             onClick={onMicClick}
             style={{
