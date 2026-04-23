@@ -12,6 +12,7 @@ from agents import function_tool
 
 from voicecal import calendar as gcal
 from voicecal.errors import NotFoundError
+from voicecal.rag import search
 from voicecal.settings import settings
 
 # In-memory calendar used only when settings.mock_providers is True.
@@ -116,4 +117,19 @@ async def update_event(
     return _normalize(updated)
 
 
-TOOLS = [list_events, create_event, update_event]
+@function_tool
+async def search_calendar_history(query: str, top_k: int = 5) -> list[dict]:
+    """Search past calendar events by semantic similarity.
+
+    Use this when the user asks about events whose exact title or time they don't remember —
+    e.g. "when did I last meet with Alex?" or "find the budget review from a few months ago".
+    Returns up to top_k matching events with title, start time, and attendees.
+
+    Args:
+        query: Natural language description of the event to find.
+        top_k: Maximum number of results to return (1-10).
+    """
+    return await search(query, top_k=min(max(top_k, 1), 10))
+
+
+TOOLS = [list_events, create_event, update_event, search_calendar_history]

@@ -1,0 +1,3 @@
+### 
+
+POST http://localhost:8000/api/_debug/reindex HTTP/1.1

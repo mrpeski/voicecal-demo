@@ -1,0 +1,5 @@
+{"id":"e001","utterance":"what's on my calendar today?","expected_tool":"list_events","must_mention":[]}
+{"id":"e002","utterance":"book 30 minutes with Alex Friday at 3pm","expected_tool":"create_event","must_mention":["Alex"]}
+{"id":"e003","utterance":"when did I last meet with Sarah?","expected_tool":"search_calendar_history","must_mention":["Sarah"]}
+{"id":"e004","utterance":"move my 3pm meeting to 4pm","expected_tool":"update_event","must_mention":[]}
+{"id":"e005","utterance":"what meetings do I have this week?","expected_tool":"list_events","must_mention":[]}
