@@ -230,3 +230,5 @@ credentials.json
 
 chroma/
 sessions.db
+sessions.db-shm
+sessions.db-wal
