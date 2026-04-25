@@ -15,17 +15,42 @@ from voicecal.settings import settings
 
 @lru_cache(maxsize=1)
 def _get_service():
-    """Load creds, refresh if expired, build the service. Cached per process."""
-    print(settings.google_credentials_path)
-    path = Path(settings.google_credentials_path)
-    creds = Credentials.from_authorized_user_file(str(path))
+    """Load creds, refresh if expired, build the service. Cached per process.
 
-    if not creds.valid:
-        if creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-            path.write_text(creds.to_json())  # persist the new access token
-        else:
-            raise RuntimeError(f"Token at {path} is invalid and cannot refresh. Re-run OAuth flow.")
+    Two paths:
+    1. Env-based (production / Lambda): GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET
+       + GOOGLE_REFRESH_TOKEN. We construct Credentials directly and rely on
+       google-auth to refresh the access token on first use.
+    2. File fallback (local dev): token.json from the OAuth installed-app flow.
+       Only used when the three env vars aren't all set.
+    """
+    if settings.has_google_env_creds:
+        creds = Credentials(
+            token=None,
+            refresh_token=settings.google_refresh_token.get_secret_value(),
+            client_id=settings.google_client_id.get_secret_value(),
+            client_secret=settings.google_client_secret.get_secret_value(),
+            token_uri=settings.google_token_uri,
+            scopes=settings.google_scopes,
+        )
+        creds.refresh(Request())  # Mint an access token now; surfaces auth errors at startup.
+    else:
+        path = Path(settings.google_credentials_path)
+        if not path.exists():
+            raise RuntimeError(
+                "No Google credentials available. Set GOOGLE_CLIENT_ID, "
+                "GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN — or place a "
+                f"token.json at {path}."
+            )
+        creds = Credentials.from_authorized_user_file(str(path))
+        if not creds.valid:
+            if creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+                path.write_text(creds.to_json())
+            else:
+                raise RuntimeError(
+                    f"Token at {path} is invalid and cannot refresh. Re-run OAuth flow."
+                )
 
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
