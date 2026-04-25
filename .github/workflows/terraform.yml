@@ -98,7 +98,29 @@ jobs:
         if: github.event.inputs.action == 'plan'
         run: terraform plan -no-color
 
-      - name: Terraform apply
+      # First apply creates ECR (and everything that doesn't depend on the
+      # image existing). On a fresh account the Lambda CANNOT be created
+      # before an image is pushed, so we provision in two phases.
+      - name: Terraform apply (ECR first)
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve -no-color -target=aws_ecr_repository.api
+
+      # Push a placeholder image so Lambda has something to point at. The
+      # Deploy workflow overwrites :latest with the real app image right
+      # after. Idempotent: subsequent runs just overwrite :latest with the
+      # same upstream layers, which Lambda's `ignore_changes` masks.
+      - name: Seed ECR with placeholder image
+        if: github.event.inputs.action == 'apply'
+        run: |
+          ECR_URL=$(terraform output -raw ecr_repo)
+          REGISTRY="${ECR_URL%%/*}"
+          aws ecr get-login-password --region "${{ vars.AWS_REGION }}" | \
+            docker login --username AWS --password-stdin "$REGISTRY"
+          docker pull --platform linux/amd64 public.ecr.aws/lambda/python:3.12
+          docker tag public.ecr.aws/lambda/python:3.12 "$ECR_URL:latest"
+          docker push "$ECR_URL:latest"
+
+      - name: Terraform apply (full stack)
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -no-color
 
