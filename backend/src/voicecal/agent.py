@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import AsyncIterator
 from datetime import datetime
@@ -131,10 +132,14 @@ async def run_agent(
                             if hasattr(item, "raw_item")
                             else "tool"
                         )
+                        try:
+                            result_str = json.dumps(item.output, default=str)
+                        except (TypeError, ValueError):
+                            result_str = str(item.output)
                         yield ToolCallEvent(
                             name=name,
                             status="done",
-                            result=str(item.output),
+                            result=result_str,
                         )
                     continue
         except Exception:

@@ -1,18 +1,21 @@
 import base64
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import structlog
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from voicecal.agent import TokenEvent, ToolCallEvent, get_session, run_agent
+from voicecal.agent import get_session, run_agent
 from voicecal.errors import AppError
 from voicecal.rag import build_index
 from voicecal.settings import settings
+from voicecal.tools import fetch_events
 from voicecal.voice import synthesize, transcribe
 
 log = structlog.get_logger()
@@ -84,6 +87,20 @@ app.add_middleware(
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok", "service": "voicecal"}
+
+
+@app.get("/api/events")
+async def get_events(
+    time_min: str | None = None,
+    time_max: str | None = None,
+) -> dict:
+    """Return calendar events in a time window (defaults: 7 days ago → 30 days ahead)."""
+    tz = ZoneInfo(settings.user_timezone)
+    now = datetime.now(tz)
+    start = time_min or (now - timedelta(days=7)).isoformat()
+    end = time_max or (now + timedelta(days=30)).isoformat()
+    events = await fetch_events(start, end)
+    return {"events": events}
 
 
 class ChatRequest(BaseModel):
@@ -183,7 +200,7 @@ async def reindex(force: bool = True):
 
 @app.post("/api/_debug/reset-rag")
 async def reset_rag():
-    from voicecal.rag import _chroma, _col
+    from voicecal.rag import _chroma
 
     _chroma.delete_collection("calendar_history")
     # Re-create so subsequent calls work

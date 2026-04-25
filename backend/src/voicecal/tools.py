@@ -33,6 +33,18 @@ def _normalize(ev: dict) -> dict:
     }
 
 
+async def fetch_events(time_range_start: str, time_range_end: str) -> list[dict]:
+    """Plain (non-tool) helper: list events in our normalized shape."""
+    if settings.mock_providers:
+        return sorted(
+            (e for e in _events.values() if time_range_start <= e["start"] < time_range_end),
+            key=lambda e: e["start"],
+        )
+
+    items = await gcal.list_events(time_range_start, time_range_end)
+    return [_normalize(ev) for ev in items]
+
+
 @function_tool
 async def list_events(time_range_start: str, time_range_end: str) -> list[dict]:
     """List calendar events in a time range. Use this whenever the user asks what is on their calendar.
@@ -41,11 +53,7 @@ async def list_events(time_range_start: str, time_range_end: str) -> list[dict]:
         time_range_start: ISO 8601 datetime, inclusive.
         time_range_end: ISO 8601 datetime, exclusive.
     """
-    if settings.mock_providers:
-        return sorted(_events.values(), key=lambda e: e["start"])
-
-    items = await gcal.list_events(time_range_start, time_range_end)
-    return [_normalize(ev) for ev in items]
+    return await fetch_events(time_range_start, time_range_end)
 
 
 @function_tool
