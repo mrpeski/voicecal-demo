@@ -1,13 +1,17 @@
-import { useState } from 'react';
 import { DAYS, DISCOVERY_PROMPTS } from '../constants';
-import { todayStr, offsetStr, timeToMins, mdToHtml } from '../utils';
+import { todayStr, offsetStr, timeToMins } from '../utils';
+import ResultCard from './ResultCard';
 
-export default function InsightsView({ events, tweaks }: InsightsViewProps) {
-  const [aiResult, setAiResult] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
+export default function InsightsView({
+  events,
+  tweaks,
+  onQuery,
+  result,
+  onDismissResult,
+}: InsightsViewProps) {
   const today = new Date();
   const todayDow = today.getDay();
+  const loading = result?.state === 'thinking';
 
   // Events per day of week (across all events)
   const byDow = DAYS.map(
@@ -50,50 +54,37 @@ export default function InsightsView({ events, tweaks }: InsightsViewProps) {
     else break;
   }
 
-  async function generateInsights() {
-    setLoading(true);
+  function eventsContext(): string {
     const dateStr = today.toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     });
-    const prompt = `You are a calendar analyst. Today is ${dateStr}. User: ${tweaks.userName}.
-
-Events data:
-${JSON.stringify(events.map(({ title, date, startTime, endTime }) => ({ title, date, startTime, endTime })))}
-
-Give 3 short, specific, actionable insights about this person's schedule patterns. Focus on: balance, recurring gaps, over-scheduling risks, or opportunities. Each insight should be 1-2 sentences. Format as a numbered list. Be direct and specific — avoid generic advice.`;
-    try {
-      const raw = await window.claude.complete({
-        messages: [{ role: 'user', content: prompt }],
-      });
-      setAiResult(raw);
-    } catch {
-      setAiResult('Could not generate insights. Please try again.');
-    }
-    setLoading(false);
+    const trimmed = events
+      .slice()
+      .sort((a, b) => (a.date + (a.startTime ?? '')).localeCompare(b.date + (b.startTime ?? '')))
+      .slice(0, 60)
+      .map(({ title, date, startTime, endTime }) => ({ title, date, startTime, endTime }));
+    return `Today is ${dateStr}. User: ${tweaks.userName}. Events (JSON): ${JSON.stringify(trimmed)}`;
   }
 
-  async function runDiscoveryPrompt(d: { prompt: string; label: string }) {
-    const dateStr = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const sys = `You are VoiceCal, a concise calendar assistant. Today is ${dateStr}. User: ${tweaks.userName}. Events: ${JSON.stringify(events.map(({ title, date, startTime, endTime }) => ({ title, date, startTime, endTime })))}. Be specific and direct. 2-3 sentences max.`;
-    setAiResult(null);
-    setLoading(true);
-    try {
-      const r = await window.claude.complete({
-        messages: [{ role: 'user', content: sys + '\n\n' + d.prompt }],
-      });
-      setAiResult(r);
-    } catch {
-      setAiResult('Could not load. Try again.');
-    }
-    setLoading(false);
+  function runAnalyzeSchedule() {
+    if (loading) return;
+    const prompt = `${eventsContext()}
+
+You are a calendar analyst. Give 3 short, specific, actionable insights about this person's schedule patterns. Focus on: balance, recurring gaps, over-scheduling risks, or opportunities. Each insight should be 1-2 sentences. Format as a numbered list. Be direct and specific — avoid generic advice.`;
+    onQuery(prompt, 'Analyze my schedule');
+  }
+
+  function runDiscoveryPrompt(d: { prompt: string; label: string }) {
+    if (loading) return;
+    const prompt = `${eventsContext()}
+
+Be specific and direct. 2-3 sentences max.
+
+${d.prompt}`;
+    onQuery(prompt, d.label);
   }
 
   const statCards: InsightsStatCard[] = [
@@ -229,22 +220,14 @@ Give 3 short, specific, actionable insights about this person's schedule pattern
           >
             Pattern analysis
           </div>
-          {aiResult ? (
-            <div
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '14px 16px',
-                fontSize: 14,
-                color: 'var(--text)',
-                lineHeight: 1.65,
-              }}
-              dangerouslySetInnerHTML={{ __html: mdToHtml(aiResult) }}
+          {result ? (
+            <ResultCard
+              result={result}
+              onDismiss={result.state === 'done' ? onDismissResult : undefined}
             />
           ) : (
             <button
-              onClick={generateInsights}
+              onClick={runAnalyzeSchedule}
               disabled={loading}
               style={{
                 width: '100%',
@@ -316,6 +299,7 @@ Give 3 short, specific, actionable insights about this person's schedule pattern
               <button
                 key={i}
                 onClick={() => runDiscoveryPrompt(d)}
+                disabled={loading}
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',

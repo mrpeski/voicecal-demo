@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { COLORS } from '../constants';
 import { formatDate, formatTime } from '../utils';
 import ResultCard from './ResultCard';
@@ -13,11 +13,27 @@ export default function ZenView({
   onSend,
   upcomingEvents,
   onDeleteEvent,
+  typeRequest,
+  onTypeRequestHandled,
 }: ZenViewProps) {
   const [textMode, setTextMode] = useState(false);
   const [input, setInput] = useState('');
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!typeRequest) return;
+    setTextMode(true);
+    setInput((prev) => prev + typeRequest.value);
+    setTimeout(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      const len = el.value.length;
+      el.setSelectionRange(len, len);
+    }, 0);
+    onTypeRequestHandled?.();
+  }, [typeRequest, onTypeRequestHandled]);
 
   function handleSend() {
     const t = input.trim();

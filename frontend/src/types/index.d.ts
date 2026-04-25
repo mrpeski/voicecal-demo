@@ -21,11 +21,18 @@ declare global {
 
   type ResultCardState = 'thinking' | 'listening' | 'done';
 
+  interface ToolCallDisplay {
+    name: string;
+    status: 'running' | 'done' | 'error';
+    resultPreview?: string;
+  }
+
   interface ResultCardResult {
     state: ResultCardState;
     transcript?: string;
     text?: string;
     newEvents?: ResultCardEventInfo[];
+    toolCalls?: ToolCallDisplay[];
   }
 
   interface VoiceCalQueryData {
@@ -33,6 +40,7 @@ declare global {
     transcript?: string;
     text?: string;
     newEvents?: ResultCardEventInfo[];
+    toolCalls?: ToolCallDisplay[];
   }
 
   type VoiceCalQueryResult = VoiceCalQueryData | null;
@@ -53,6 +61,9 @@ declare global {
     onSend: (message: string) => void;
     upcomingEvents: ZenViewEvent[];
     onDeleteEvent: (eventId: string) => void;
+    /** Bumped to request focus + prefill of the text input. */
+    typeRequest?: { value: string; nonce: number } | null;
+    onTypeRequestHandled?: () => void;
   }
 
   // ===== Waveform =====
@@ -116,6 +127,9 @@ declare global {
   interface InsightsViewProps {
     events: InsightsEvent[];
     tweaks: InsightsTweaks;
+    onQuery: (prompt: string, label: string) => void;
+    result?: ResultCardResult | null;
+    onDismissResult: () => void;
   }
 
   // ===== Header =====

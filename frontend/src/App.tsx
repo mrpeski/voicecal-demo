@@ -4,6 +4,7 @@ import { cleanText, genId, parseEventBlocks, todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
+import { fetchEvents, sendChat } from './lib/chatApi';
 import type { VoiceResult } from './lib/types';
 
 import Header from './components/Header';
@@ -24,8 +25,10 @@ export default function App() {
   // ── Ephemeral UI state ──────────────────────────────────────────────────
   const [zenResult, setZenResult] = useState<VoiceCalQueryResult>(null);
   const [planResult, setPlanResult] = useState<VoiceCalQueryResult>(null);
+  const [insightsResult, setInsightsResult] = useState<VoiceCalQueryResult>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [typeRequest, setTypeRequest] = useState<{ value: string; nonce: number } | null>(null);
 
   // ── Voice I/O ───────────────────────────────────────────────────────────
 
@@ -33,6 +36,29 @@ export default function App() {
   useEffect(() => {
     applyTheme(tweaks.darkMode, tweaks.accentHue);
   }, [tweaks.darkMode, tweaks.accentHue]);
+
+  // Boot fetch: pull events from the backend on mount and merge into local state.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchEvents(ctrl.signal)
+      .then((backendEvents) => {
+        const mapped = backendEvents
+          .map((ev) => toolOutputToLocalEvent(JSON.stringify(ev)))
+          .filter((e): e is VoiceCalEvent => e !== null);
+        if (!mapped.length) return;
+        setEvents((list) => {
+          const byId = new Map(list.map((e) => [e.id, e]));
+          for (const ev of mapped) byId.set(ev.id, ev);
+          return Array.from(byId.values());
+        });
+      })
+      .catch((err) => {
+        if ((err as { name?: string })?.name === 'AbortError') return;
+        console.warn('boot fetch /api/events failed', err);
+      });
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Edit-mode message bridge (parent page integration) ─────────────────
   useEffect(() => {
@@ -62,107 +88,25 @@ export default function App() {
     setPlanResult(null);
   }
 
-  // ── AI query handler ────────────────────────────────────────────────────
-  async function processQuery(text: string, transcript: string) {
-    if (!text.trim()) return;
-    const setResult: Dispatch<SetStateAction<VoiceCalQueryResult>> =
-      mode === 'plan' ? setPlanResult : setZenResult;
-    setResult({ state: 'thinking', transcript });
-
-    const today = new Date();
-    const dateStr = today.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-    const ref = (n: number) => {
-      const d = new Date(today);
-      d.setDate(d.getDate() + n);
-      return (
-        d.toISOString().slice(0, 10) +
-        ' (' +
-        d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
-        ')'
-      );
-    };
-
-    const system = `You are VoiceCal, a helpful and concise calendar + life assistant.
-Today is ${dateStr}. Time: ${today.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.
-References: tomorrow=${ref(1)}, in 2 days=${ref(2)}, in 1 week=${ref(7)}, in 2 weeks=${ref(14)}, in 3 weeks=${ref(21)}, in 1 month=${ref(30)}.
-User: ${tweaks.userName}. TZ: ${tweaks.timezone}. Work: ${tweaks.workStart}–${tweaks.workEnd}. Default duration: ${tweaks.defaultDuration}min.
-
-Current events:
-${JSON.stringify(events.map(({ id, title, date, startTime, endTime, description }) => ({ id, title, date, startTime, endTime, description })))}
-
-To create: <create_event>{"title":"...","date":"YYYY-MM-DD","startTime":"HH:MM","endTime":"HH:MM","description":"..."}</create_event>
-To delete: <delete_event>{"id":"..."}</delete_event>
-
-For entertainment questions: give specific titles with one-line reasons. Be direct. 3 sentences max unless listing.`;
-
-    try {
-      const raw = await window.claude.complete({
-        messages: [{ role: 'user', content: system + '\n\nUser: ' + text }],
-      });
-      const { creates, deletes } = parseEventBlocks(raw);
-      const clean = cleanText(raw);
-
-      let newEvs: VoiceCalEvent[] = [];
-      if (creates.length) {
-        newEvs = creates.map((payload, i) => {
-          const record = payload as Record<string, unknown>;
-          const pickString = (value: unknown) => (typeof value === 'string' ? value : undefined);
-          const title = pickString(record.title)?.trim() || 'New event';
-          const date = pickString(record.date) || todayStr();
-          const startTime = pickString(record.startTime);
-          const endTime = pickString(record.endTime);
-          const description = pickString(record.description);
-          return {
-            id: genId(),
-            title,
-            date,
-            startTime,
-            endTime,
-            description,
-            colorIndex: (events.length + i) % COLORS.length,
-          } satisfies VoiceCalEvent;
-        });
-        setEvents((p) => [...p, ...newEvs]);
-      }
-      if (deletes.length) {
-        const ids = new Set(deletes.map((d) => d.id));
-        setEvents((p) => p.filter((e) => !ids.has(e.id)));
-      }
-
-      setResult({
-        state: 'done',
-        transcript,
-        text: clean,
-        newEvents: newEvs.length
-          ? newEvs.map(({ title, date, startTime, endTime, colorIndex }) => ({
-              title,
-              date,
-              startTime,
-              endTime,
-              colorIndex,
-            }))
-          : undefined,
-      });
-    } catch {
-      const err = 'Sorry, something went wrong. Please try again.';
-      setResult({ state: 'done', transcript, text: err });
-    }
-  }
 
   // ── Speech recognition ──────────────────────────────────────────────────
   const setActiveResult: Dispatch<SetStateAction<VoiceCalQueryResult>> =
-    mode === 'plan' ? setPlanResult : setZenResult;
+    mode === 'plan'
+      ? setPlanResult
+      : mode === 'insights'
+        ? setInsightsResult
+        : setZenResult;
 
   function handleVoiceResult(result: VoiceResult) {
     setActiveResult({
       state: 'done',
       transcript: result.transcript,
       text: result.response_text,
+      toolCalls: result.tool_calls.map((tc) => ({
+        name: tc.name,
+        status: tc.status,
+        resultPreview: tc.result?.slice(0, 160) ?? undefined,
+      })),
     });
   }
 
@@ -174,6 +118,7 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
       transcript: result.transcript,
       text: result.text,
       newEvents: result.newEvents,
+      toolCalls: result.toolCalls,
     };
   }
 
@@ -181,10 +126,184 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
     onResult: handleVoiceResult,
   });
 
+  const [conversationId, setConversationId] = usePersistentState<string | null>(
+    'voicecal.conversation_id',
+    null,
+  );
+
+  function toolOutputToLocalEvent(raw: string): VoiceCalEvent | null {
+    try {
+      const ev = JSON.parse(raw) as {
+        id?: string;
+        title?: string;
+        start?: string;
+        end?: string;
+        description?: string;
+      };
+      if (!ev || !ev.id || !ev.start) return null;
+
+      const start = ev.start;
+      const end = ev.end ?? '';
+      const date = start.slice(0, 10);
+      const startTime = start.length >= 16 ? start.slice(11, 16) : undefined;
+      const endTime = end.length >= 16 ? end.slice(11, 16) : undefined;
+
+      // Stable color from title hash so the same event keeps the same color.
+      const title = ev.title ?? 'Untitled';
+      let hash = 0;
+      for (let i = 0; i < title.length; i++) hash = (hash * 31 + title.charCodeAt(i)) | 0;
+      const colorIndex = Math.abs(hash) % COLORS.length;
+
+      return {
+        id: ev.id,
+        title,
+        date,
+        startTime,
+        endTime,
+        description: ev.description,
+        colorIndex,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function handleSendMessage(message: string, displayLabel?: string) {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const transcript = (displayLabel ?? trimmed).trim();
+
+    setActiveResult({ state: 'thinking', transcript, text: '', toolCalls: [] });
+    try {
+      const result = await sendChat(trimmed, {
+        conversationId,
+        onEvent: (ev) => {
+          if (ev.type === 'token') {
+            setActiveResult((prev) => ({
+              state: 'thinking',
+              transcript: prev?.transcript ?? transcript,
+              text: (prev?.text ?? '') + ev.text,
+              toolCalls: prev?.toolCalls,
+            }));
+          } else if (ev.type === 'tool_call') {
+            setActiveResult((prev) => {
+              const calls: ToolCallDisplay[] = [...(prev?.toolCalls ?? [])];
+              if (ev.status === 'running') {
+                calls.push({ name: ev.name, status: 'running' });
+              } else {
+                let matched = false;
+                for (let i = calls.length - 1; i >= 0; i--) {
+                  if (calls[i].name === ev.name && calls[i].status === 'running') {
+                    calls[i] = {
+                      name: ev.name,
+                      status: ev.status,
+                      resultPreview: ev.result?.slice(0, 160),
+                    };
+                    matched = true;
+                    break;
+                  }
+                }
+                if (!matched) {
+                  calls.push({
+                    name: ev.name,
+                    status: ev.status,
+                    resultPreview: ev.result?.slice(0, 160),
+                  });
+                }
+              }
+              return {
+                state: 'thinking',
+                transcript: prev?.transcript ?? transcript,
+                text: prev?.text ?? '',
+                toolCalls: calls,
+              };
+            });
+          }
+        },
+      });
+
+      if (result.conversation_id) setConversationId(result.conversation_id);
+
+      // Sync local events from any successful create/update tool calls.
+      for (const tc of result.tool_calls) {
+        if (tc.status !== 'done' || !tc.result) continue;
+        if (tc.name === 'create_event') {
+          const local = toolOutputToLocalEvent(tc.result);
+          if (local) setEvents((list) => [...list.filter((e) => e.id !== local.id), local]);
+        } else if (tc.name === 'update_event') {
+          const local = toolOutputToLocalEvent(tc.result);
+          if (local) {
+            setEvents((list) =>
+              list.some((e) => e.id === local.id)
+                ? list.map((e) => (e.id === local.id ? local : e))
+                : [...list, local],
+            );
+          }
+        }
+      }
+
+      setActiveResult({
+        state: 'done',
+        transcript,
+        text: result.text,
+        toolCalls: result.tool_calls.map((tc) => ({
+          name: tc.name,
+          status: tc.status,
+          resultPreview: tc.result?.slice(0, 160) ?? undefined,
+        })),
+      });
+    } catch (err) {
+      console.error('chat failed', err);
+      setActiveResult({
+        state: 'done',
+        transcript,
+        text: 'Sorry, something went wrong reaching the assistant.',
+      });
+    }
+  }
+
   function handleMicClick() {
     if (listening) stopListening();
     else startListening();
   }
+
+  // ── Keyboard shortcuts: Tab cycles modes, Space toggles recording ──────
+  useEffect(() => {
+    const MODES: Mode[] = ['zen', 'plan', 'insights'];
+
+    function isTypingTarget(el: EventTarget | null): boolean {
+      if (!(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.isContentEditable) return true;
+      return false;
+    }
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (settingsOpen || editMode) return;
+      if (isTypingTarget(e.target)) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        setMode((current) => {
+          const idx = MODES.indexOf(current);
+          const delta = e.shiftKey ? -1 : 1;
+          return MODES[(idx + delta + MODES.length) % MODES.length];
+        });
+      } else if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        handleMicClick();
+      } else if (e.key.length === 1 && /^[a-zA-Z]$/.test(e.key)) {
+        e.preventDefault();
+        if (mode !== 'zen') setMode('zen');
+        setTypeRequest({ value: e.key, nonce: Date.now() + Math.random() });
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [settingsOpen, editMode, listening, mode, setMode]);
 
   const updateEditModeTweak = <K extends keyof EditModeTweaksState>(
     key: K,
@@ -235,16 +354,18 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
           onDismissResult={dismissZenResult}
           listening={listening}
           onMicClick={handleMicClick}
-          onSend={(t) => processQuery(t, t)}
+          onSend={handleSendMessage}
           upcomingEvents={upcomingEvents}
           onDeleteEvent={deleteEvent}
+          typeRequest={typeRequest}
+          onTypeRequestHandled={() => setTypeRequest(null)}
         />
       )}
 
       {mode === 'plan' && (
         <PlanView
           events={events}
-          onQuery={processQuery}
+          onQuery={(prompt, label) => handleSendMessage(prompt, label)}
           result={toResultCard(planResult)}
           onDismissResult={dismissPlanResult}
           onDeleteEvent={deleteEvent}
@@ -252,7 +373,15 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
         />
       )}
 
-      {mode === 'insights' && <InsightsView events={events} tweaks={tweaks} />}
+      {mode === 'insights' && (
+        <InsightsView
+          events={events}
+          tweaks={tweaks}
+          onQuery={(prompt, label) => handleSendMessage(prompt, label)}
+          result={toResultCard(insightsResult) ?? null}
+          onDismissResult={() => setInsightsResult(null)}
+        />
+      )}
 
       <SettingsPanel
         open={settingsOpen}
