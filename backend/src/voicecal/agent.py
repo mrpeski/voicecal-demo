@@ -339,6 +339,34 @@ def get_session(conversation_id: str) -> SQLiteSession:
     return SQLiteSession(conversation_id, SESSIONS_DB_PATH)
 
 
+async def run_deterministic_mock_llm(user_message: str) -> AsyncIterator[AgentEvent]:
+    """No OpenAI call: stream a fixed echo for full mock mode (MOCK_LLM + MOCK_PROVIDERS)."""
+    response_text = f"You said: {user_message}"
+    for word in response_text.split(" "):
+        yield TokenEvent(text=word + " ")
+    yield DoneEvent()
+
+
+async def run_mock_provider_heuristic_recovery(
+    user_message: str,
+    *,
+    saw_tool_call: bool,
+    tool_done_names: set[str],
+) -> AsyncIterator[AgentEvent]:
+    """If MOCK_PROVIDERS, run rule-based tool fallbacks when the model skipped needed tools."""
+    if not settings.mock_providers:
+        return
+    if not saw_tool_call:
+        async for event in _heuristic_fallback(user_message):
+            yield event
+    elif (
+        "update_event" not in tool_done_names
+        and _infer_intent(user_message) == "update_event"
+    ):
+        async for event in _heuristic_fallback(user_message):
+            yield event
+
+
 async def run_agent(
     user_message: str,
     conversation_id: str,
@@ -352,12 +380,9 @@ async def run_agent(
     now = datetime.now(tz).strftime("%A %d %B %Y, %H:%M %Z")
     instructions = f"{SYSTEM}\n\nCurrent time: {now}\nUser timezone: {settings.user_timezone}"
 
-    # Only enable deterministic echo when explicitly requested.
-    if settings.mock_llm:
-        response_text = f"You said: {user_message}"
-        for word in response_text.split(" "):
-            yield TokenEvent(text=word + " ")
-        yield DoneEvent()
+    if settings.use_deterministic_llm_echo:
+        async for event in run_deterministic_mock_llm(user_message):
+            yield event
         return
 
     agent = _build_agent(instructions)
@@ -417,18 +442,11 @@ async def run_agent(
             log.exception("agent_error", conversation_id=conversation_id)
             yield ToolCallEvent(name="agent", status="error", result="agent run failed")
 
-    # In mock mode, recover from "no tool called" responses so evals
-    # still exercise the tool layer deterministically.
-    if settings.mock_providers and not saw_tool_call:
-        async for fallback_event in _heuristic_fallback(user_message):
-            yield fallback_event
-    elif (
-        settings.mock_providers
-        and saw_tool_call
-        and "update_event" not in tool_done_names
-        and _infer_intent(user_message) == "update_event"
+    async for event in run_mock_provider_heuristic_recovery(
+        user_message,
+        saw_tool_call=saw_tool_call,
+        tool_done_names=tool_done_names,
     ):
-        async for fallback_event in _heuristic_fallback(user_message):
-            yield fallback_event
+        yield event
 
     yield DoneEvent()

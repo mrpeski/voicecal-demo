@@ -31,8 +31,8 @@ class Settings(BaseSettings):
     user_timezone: str = "Europe/London"
     cors_origins: list[str] = ["http://localhost:5173"]
     mock_providers: bool = False
-    # When True, agent.py short-circuits the LLM with a deterministic echo.
-    # Keep this False in production.
+    # Request deterministic LLM echo (dev/tests). See use_deterministic_llm_echo;
+    # echo only runs in full mock mode, not with real Google Calendar.
     mock_llm: bool = False
 
     @field_validator("google_credentials_path")
@@ -49,6 +49,16 @@ class Settings(BaseSettings):
             and self.google_client_secret.get_secret_value()
             and self.google_refresh_token.get_secret_value()
         )
+
+    @property
+    def use_deterministic_llm_echo(self) -> bool:
+        """True only in full mock mode: MOCK_LLM + MOCK_PROVIDERS (in-memory tools)."""
+        return self.mock_llm and self.mock_providers
+
+    @property
+    def mock_llm_flag_ignored(self) -> bool:
+        """MOCK_LLM is on but real providers are used; echo is disabled, real LLM runs."""
+        return self.mock_llm and not self.mock_providers
 
 
 settings = Settings()

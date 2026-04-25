@@ -43,6 +43,13 @@ async def lifespan(app: FastAPI):
     else:
         log.info("startup_rag_skipped", reason="mock_providers")
 
+    if settings.mock_llm_flag_ignored:
+        log.warning(
+            "mock_llm_ignored",
+            message="MOCK_LLM is set but MOCK_PROVIDERS is false; using the real LLM. "
+            "Unset MOCK_LLM in production or set MOCK_PROVIDERS=true for full mock mode.",
+        )
+
     yield
 
 
