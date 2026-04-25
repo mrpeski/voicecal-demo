@@ -1,0 +1,110 @@
+name: Terraform
+
+# Manual lifecycle control for the AWS stack.
+# - "plan"    : show what apply would do (safe, read-only).
+# - "apply"   : provision / update infra.
+# - "destroy" : tear it all down. Requires typing "destroy" in `confirm` to run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to run"
+        required: true
+        type: choice
+        default: plan
+        options: [plan, apply, destroy]
+      confirm:
+        description: 'Type "destroy" to enable a destroy run (ignored for plan/apply)'
+        required: false
+        default: ""
+
+concurrency:
+  group: terraform
+  cancel-in-progress: false
+
+# Required for OIDC: lets the workflow request a JWT from GitHub.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "0"
+      # Per-secret TF_VAR_* would need code changes (we use a single
+      # map(string)). Build the map JSON inline below instead.
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_cors_allow_origin: ${{ vars.CORS_ALLOW_ORIGIN || '*' }}
+    steps:
+      - name: Guard destroy
+        if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm != 'destroy'
+        run: |
+          echo "::error::Destroy requires confirm='destroy'. Aborting."
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region:     ${{ vars.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.0
+
+      - name: Build secret_env_vars JSON
+        env:
+          OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_CLIENT_ID:     ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: |
+          # Emit a single JSON map for TF_VAR_secret_env_vars. jq -n keeps the
+          # values in env (never echoed) and writes to $GITHUB_ENV with EOF
+          # masking via "add-mask" on each individual value.
+          for v in OPENAI_API_KEY ANTHROPIC_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN; do
+            echo "::add-mask::${!v}"
+          done
+          json=$(jq -n \
+            --arg openai "$OPENAI_API_KEY" \
+            --arg anthropic "$ANTHROPIC_API_KEY" \
+            --arg gid "$GOOGLE_CLIENT_ID" \
+            --arg gsec "$GOOGLE_CLIENT_SECRET" \
+            --arg grt "$GOOGLE_REFRESH_TOKEN" \
+            '{OPENAI_API_KEY:$openai, ANTHROPIC_API_KEY:$anthropic, GOOGLE_CLIENT_ID:$gid, GOOGLE_CLIENT_SECRET:$gsec, GOOGLE_REFRESH_TOKEN:$grt}')
+          # Multi-line env var assignment.
+          {
+            echo "TF_VAR_secret_env_vars<<EOF_TF"
+            echo "$json"
+            echo "EOF_TF"
+          } >> "$GITHUB_ENV"
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="region=${{ vars.AWS_REGION }}"
+
+      - name: Terraform plan
+        if: github.event.inputs.action == 'plan'
+        run: terraform plan -no-color
+
+      - name: Terraform apply
+        if: github.event.inputs.action == 'apply'
+        run: terraform apply -auto-approve -no-color
+
+      - name: Terraform destroy
+        if: github.event.inputs.action == 'destroy'
+        run: terraform destroy -auto-approve -no-color
+
+      - name: Show outputs
+        if: github.event.inputs.action == 'apply'
+        run: terraform output

@@ -1,0 +1,31 @@
+# Terraform state — contains secrets in plaintext (Lambda env vars, etc.)
+*.tfstate
+*.tfstate.*
+
+# Provider plugins, modules, lockfile cache
+.terraform/
+.terraform.lock.hcl
+
+# Variable files — may contain secrets
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Saved plan output (binary, may contain secrets)
+*.tfplan
+*.tfplan.*
+
+# Crash logs and debug output
+crash.log
+crash.*.log
+
+# Local override files — for ad-hoc tweaks, never committed
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI config (may contain credentials/tokens)
+.terraformrc
+terraform.rc

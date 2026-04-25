@@ -1,0 +1,96 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+  # Uncomment to deploy on push to main once AWS secrets/vars are configured.
+  # push:
+  #   branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+# Required for OIDC: lets the workflow request a JWT from GitHub.
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ─── Backend: build image → push to ECR → point Lambda at new image ──────
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region:     ${{ vars.AWS_REGION }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - name: Build and push image
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+          SHA:   ${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            -t $IMAGE:latest \
+            -t $IMAGE:$SHA \
+            .
+          docker push $IMAGE:latest
+          docker push $IMAGE:$SHA
+
+      # Lambda caches the image digest; just updating the :latest tag in ECR
+      # isn't enough. We must call update-function-code with the SHA-tagged URI
+      # to force Lambda to pull the new layers.
+      - name: Update Lambda
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
+          SHA:   ${{ github.sha }}
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ vars.LAMBDA_FUNCTION }} \
+            --image-uri $IMAGE:$SHA \
+            --region ${{ vars.AWS_REGION }} > /dev/null
+
+          # Wait for the update to finish before the job exits, otherwise a
+          # follow-up deploy could race.
+          aws lambda wait function-updated \
+            --function-name ${{ vars.LAMBDA_FUNCTION }} \
+            --region ${{ vars.AWS_REGION }}
+
+  # ─── Frontend: vite build → S3 sync ──────────────────────────────────────
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: npm run build
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_TO_ASSUME }}
+          aws-region:     ${{ vars.AWS_REGION }}
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync dist/ s3://${{ vars.FRONTEND_BUCKET }}/ --delete
