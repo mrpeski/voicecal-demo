@@ -34,6 +34,12 @@ variable "project" {
   default = "voicecal"
 }
 
+variable "github_repo" {
+  type        = string
+  description = "GitHub repo allowed to assume the deploy role, in 'owner/repo' form."
+  # Set this in bootstrap.auto.tfvars (gitignored) or pass via -var.
+}
+
 data "aws_caller_identity" "me" {}
 
 locals {
@@ -77,9 +83,64 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
 
 output "bucket" {
   value       = aws_s3_bucket.tfstate.id
-  description = "Use this in the main stack's backend.tf as `bucket = ...`."
+  description = "Set as the GitHub repo variable TF_STATE_BUCKET."
 }
 
 output "region" {
   value = var.aws_region
+}
+
+# ─── GitHub Actions OIDC ────────────────────────────────────────────────────
+#
+# AWS-side prerequisite for keyless deploys. Workflows present a JWT issued by
+# token.actions.githubusercontent.com; AWS validates it against this provider
+# and exchanges it for short-lived credentials. No long-lived access keys.
+
+resource "aws_iam_openid_connect_provider" "github" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  # GitHub rotates the cert; AWS now validates against the provider's TLS
+  # cert chain rather than this thumbprint, but the field is still required.
+  # The value below is the long-standing GitHub OIDC root thumbprint.
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+data "aws_iam_policy_document" "github_assume" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    # Restrict to workflows from this repo (any branch/tag/PR).
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_repo}:*"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_deploy" {
+  name               = "${var.project}-github-deploy"
+  assume_role_policy = data.aws_iam_policy_document.github_assume.json
+  description        = "Assumed by GitHub Actions via OIDC for terraform + app deploys."
+}
+
+# AdministratorAccess is overkill but pragmatic for a 48-hour demo where the
+# role provisions S3, ECR, IAM, Lambda, and CloudWatch. Tighten later by
+# attaching a custom policy with only what's needed.
+resource "aws_iam_role_policy_attachment" "github_admin" {
+  role       = aws_iam_role.github_deploy.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+output "github_role_arn" {
+  value       = aws_iam_role.github_deploy.arn
+  description = "Set as the GitHub repo variable AWS_ROLE_TO_ASSUME."
 }

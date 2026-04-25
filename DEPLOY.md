@@ -8,21 +8,26 @@ VoiceCal deploys to AWS:
 
 ## One-time setup
 
-### 1a. Bootstrap the Terraform state bucket (run once, ever)
+### 1a. Bootstrap state bucket + GitHub OIDC role (run once, ever)
 
-State for the main stack lives in S3 with native S3 locking
-(`use_lockfile`, requires Terraform >= 1.10). The bucket itself is created by
-a tiny module with **local** state — it has to be, because chicken-and-egg.
+The bootstrap module creates three things, with **local** Terraform state
+(chicken-and-egg — these resources host everything else):
+
+1. S3 bucket for the main stack's Terraform state (versioned, encrypted,
+   `use_lockfile` for native locking — Terraform >= 1.10 required)
+2. GitHub Actions OIDC provider in your AWS account
+3. IAM role `voicecal-github-deploy` that GitHub can assume (scoped to
+   `repo:<owner>/<repo>:*`), with `AdministratorAccess` for demo simplicity
 
 ```bash
 cd infra/bootstrap
+echo 'github_repo = "your-gh-username/voicecal-demo"' > bootstrap.auto.tfvars
 terraform init
 terraform apply
-# Note the `bucket` output, e.g. voicecal-tfstate-123456789012
+# Note both outputs:
+#   bucket           → voicecal-tfstate-123456789012
+#   github_role_arn  → arn:aws:iam::123456789012:role/voicecal-github-deploy
 ```
-
-Then edit `infra/backend.tf` and replace `REPLACE_WITH_ACCOUNT_ID` with your
-account id (or pass `-backend-config="bucket=..."` to `terraform init` below).
 
 ### 1b. Bootstrap the main stack
 
@@ -56,16 +61,19 @@ aws lambda update-function-code \
 
 ### 3. Configure GitHub secrets/variables
 
-Set in **repo → Settings → Secrets and variables → Actions**:
+Set in **repo → Settings → Secrets and variables → Actions**.
 
-**Secrets** (used by both workflows):
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+AWS access uses **OIDC** — no AWS access keys in GitHub.
+
+**Secrets** (only the third-party API keys, used by Terraform to populate
+Lambda env vars):
 - `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
 
 **Variables**:
 - `AWS_REGION` (e.g. `us-east-1`)
-- `TF_STATE_BUCKET` — output from the bootstrap step (e.g. `voicecal-tfstate-123456789012`)
+- `AWS_ROLE_TO_ASSUME` — `github_role_arn` output from bootstrap
+- `TF_STATE_BUCKET` — `bucket` output from bootstrap
 - `ECR_REPOSITORY` (e.g. `voicecal-api`)
 - `LAMBDA_FUNCTION` (e.g. `voicecal-api`)
 - `FRONTEND_BUCKET` — output from `terraform apply`
@@ -87,9 +95,10 @@ Manual trigger from **Actions → Terraform → Run workflow**:
 - `action: apply` — provision or update
 - `action: destroy` — tear it all down. Requires `confirm: destroy` in the second input.
 
+AWS auth: OIDC → assumes `AWS_ROLE_TO_ASSUME` (no static keys).
 Reads Terraform state from the S3 backend (locked via `use_lockfile`).
-Secrets are passed via `TF_VAR_secret_env_vars` (assembled inline from
-GitHub secrets) — never written to disk.
+Third-party API keys are passed via `TF_VAR_secret_env_vars` (assembled
+inline from GitHub secrets) — never written to disk.
 
 ### `Deploy` workflow (build & ship app code)
 
