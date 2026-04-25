@@ -3,7 +3,7 @@
 VoiceCal deploys to AWS:
 
 - **Backend** → Lambda (container image, ECR) fronted by an HTTP API Gateway (catch-all `ANY /{proxy+}` route). Runs the unmodified FastAPI app via the [AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter). API Gateway is used instead of a Lambda Function URL because new AWS accounts (2024+) have "Block Public Access for Lambda" enabled by default, which blocks `Principal:"*"` resource policies on Function URLs at the AWS edge.
-- **Frontend** → static SPA on S3 (public website hosting, SPA fallback to `index.html`).
+- **Frontend** → static SPA on S3 (public website hosting), served over HTTPS via a CloudFront distribution (`*.cloudfront.net` domain, free AWS-managed cert). SPA fallback to `index.html` is configured at both the S3 website layer and CloudFront.
 - **CI/CD** → `.github/workflows/deploy.yml`: build & push image, update Lambda, build & sync frontend.
 
 ## One-time setup
@@ -76,13 +76,14 @@ Lambda env vars):
 - `TF_STATE_BUCKET` — `bucket` output from bootstrap
 - `ECR_REPOSITORY` (e.g. `voicecal-api`)
 - `LAMBDA_FUNCTION` (e.g. `voicecal-api`)
-- `FRONTEND_BUCKET` — output from `terraform apply`
-- `VITE_API_BASE_URL` — API Gateway endpoint (no trailing slash), `api_url` output from `terraform apply`. Format: `https://<id>.execute-api.<region>.amazonaws.com`
-- `CORS_ALLOW_ORIGIN` (optional) — defaults to `*`; tighten to your S3 website URL after first deploy
+- `FRONTEND_BUCKET` — `frontend_bucket` output from `terraform apply`
+- `CLOUDFRONT_DISTRIBUTION_ID` — `cloudfront_distribution_id` output. Set this so the Deploy workflow invalidates the cache after each frontend release.
+- `VITE_API_BASE_URL` — API Gateway endpoint (no trailing slash), `api_url` output. Format: `https://<id>.execute-api.<region>.amazonaws.com`
+- `CORS_ALLOW_ORIGIN` (optional) — defaults to `*`; tighten to the CloudFront URL (`frontend_url` output, e.g. `https://dxxxxxxxx.cloudfront.net`) after first deploy
 
 ### 4. Tighten CORS
 
-After first frontend deploy, set the `CORS_ALLOW_ORIGIN` repo variable to the S3 website URL and re-run the **Terraform / apply** workflow.
+After the first frontend deploy, set the `CORS_ALLOW_ORIGIN` repo variable to the **CloudFront URL** (`frontend_url` output — `https://dxxxxxxxx.cloudfront.net`) and re-run the **Terraform / apply** workflow. The Lambda env var `CORS_ORIGINS` is updated in the same step and FastAPI's CORSMiddleware will start allowing only that origin.
 
 ## GitHub-driven lifecycle
 

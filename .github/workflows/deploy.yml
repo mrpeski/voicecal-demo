@@ -98,3 +98,13 @@ jobs:
       - name: Sync to S3
         run: |
           aws s3 sync dist/ s3://${{ vars.FRONTEND_BUCKET }}/ --delete
+
+      # CloudFront caches aggressively (CachingOptimized policy). Without an
+      # invalidation, viewers keep seeing the old build for hours. Skip
+      # silently if CLOUDFRONT_DISTRIBUTION_ID isn't set (e.g. local-only).
+      - name: Invalidate CloudFront cache
+        if: vars.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"

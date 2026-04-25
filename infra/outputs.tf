@@ -17,5 +17,16 @@ output "frontend_bucket" {
 }
 
 output "frontend_url" {
-  value = "http://${aws_s3_bucket_website_configuration.web.website_endpoint}"
+  value       = "https://${aws_cloudfront_distribution.web.domain_name}"
+  description = "Canonical frontend URL (HTTPS via CloudFront). Use this in the browser and in CORS_ALLOW_ORIGIN."
+}
+
+output "frontend_url_s3_origin" {
+  value       = "http://${aws_s3_bucket_website_configuration.web.website_endpoint}"
+  description = "Direct S3 website endpoint — for debugging only; users should hit CloudFront."
+}
+
+output "cloudfront_distribution_id" {
+  value       = aws_cloudfront_distribution.web.id
+  description = "Use with `aws cloudfront create-invalidation` after deploying new frontend assets."
 }
