@@ -123,3 +123,14 @@ button:active {
     opacity: 1;
   }
 }
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

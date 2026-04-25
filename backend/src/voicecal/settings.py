@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     user_timezone: str = "Europe/London"
     cors_origins: list[str] = ["http://localhost:5173"]
     mock_providers: bool = True
+    # When True, agent.py short-circuits the LLM with a deterministic echo
+    # (used by some local dev paths). Defaults to mock_providers if not set.
+    mock_llm: bool | None = None
 
     @field_validator("google_credentials_path")
     @classmethod

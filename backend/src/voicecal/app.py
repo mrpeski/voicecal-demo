@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from voicecal.agent import get_session, run_agent
 from voicecal.errors import AppError
+from voicecal.eval import stream_evals
 from voicecal.rag import build_index
 from voicecal.settings import settings
 from voicecal.tools import fetch_events
@@ -118,6 +119,18 @@ async def chat(req: ChatRequest) -> StreamingResponse:
         yield f'data: {{"type": "session", "conversation_id": "{conversation_id}"}}\n\n'
 
         async for event in run_agent(req.message, conversation_id):
+            yield f"data: {event.model_dump_json()}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(stream(), media_type="text/event-stream")
+
+
+@app.post("/api/eval")
+async def eval_endpoint() -> StreamingResponse:
+    """Stream the golden-set eval results, one SSE event per scenario state change."""
+
+    async def stream():
+        async for event in stream_evals():
             yield f"data: {event.model_dump_json()}\n\n"
         yield "data: [DONE]\n\n"
 

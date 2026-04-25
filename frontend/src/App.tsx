@@ -13,6 +13,7 @@ import PlanView from './components/PlanView';
 import InsightsView from './components/InsightsView';
 import SettingsPanel from './components/SettingsPanel';
 import EditModeTweaks from './components/EditModeTweaks';
+import EvalPanel from './components/EvalPanel';
 
 export default function App() {
   // ── Persisted state ─────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ export default function App() {
   const [planResult, setPlanResult] = useState<VoiceCalQueryResult>(null);
   const [insightsResult, setInsightsResult] = useState<VoiceCalQueryResult>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [evalOpen, setEvalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [typeRequest, setTypeRequest] = useState<{ value: string; nonce: number } | null>(null);
 
@@ -345,6 +347,7 @@ export default function App() {
         speaking={false}
         onStopSpeaking={() => {}}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenEvals={() => setEvalOpen(true)}
       />
 
       {mode === 'zen' && (
@@ -389,6 +392,8 @@ export default function App() {
         settings={tweaks}
         onChange={updateTweak}
       />
+
+      <EvalPanel open={evalOpen} onClose={() => setEvalOpen(false)} />
 
       {editMode && (
         <EditModeTweaks

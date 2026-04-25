@@ -91,7 +91,8 @@ async def run_agent(
     now = datetime.now(tz).strftime("%A %d %B %Y, %H:%M %Z")
     instructions = f"{SYSTEM}\n\nCurrent time: {now}\nUser timezone: {settings.user_timezone}"
 
-    if settings.mock_providers:
+    use_mock_llm = settings.mock_llm if settings.mock_llm is not None else settings.mock_providers
+    if use_mock_llm:
         response_text = f"You said: {user_message}"
         for word in response_text.split(" "):
             yield TokenEvent(text=word + " ")

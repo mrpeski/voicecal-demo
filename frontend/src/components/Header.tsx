@@ -8,6 +8,7 @@ export default function Header({
   speaking,
   onStopSpeaking,
   onOpenSettings,
+  onOpenEvals,
 }: HeaderProps) {
   return (
     <div
@@ -125,6 +126,30 @@ export default function Header({
               />
             </svg>
           )}
+        </button>
+
+        {/* Evals */}
+        <button
+          onClick={onOpenEvals}
+          title="Run evals"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text2)',
+            cursor: 'pointer',
+            width: 34,
+            height: 34,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            fontFamily: 'ui-monospace,monospace',
+          }}
+        >
+          ✓✗
         </button>
 
         {/* Settings */}

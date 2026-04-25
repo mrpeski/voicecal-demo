@@ -141,6 +141,7 @@ declare global {
     speaking: boolean;
     onStopSpeaking: () => void;
     onOpenSettings: () => void;
+    onOpenEvals: () => void;
   }
 
   // ===== ModeToggle =====

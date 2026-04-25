@@ -3,3 +3,18 @@
 {"id":"e003","utterance":"when did I last meet with Sarah?","expected_tool":"search_calendar_history","must_mention":["Sarah"]}
 {"id":"e004","utterance":"move my 3pm meeting to 4pm","expected_tool":"update_event","must_mention":[]}
 {"id":"e005","utterance":"what meetings do I have this week?","expected_tool":"list_events","must_mention":[]}
+{"id":"e006","utterance":"schedule a 1 hour focus block tomorrow morning","expected_tool":"create_event","must_mention":["focus"]}
+{"id":"e007","utterance":"add a coffee with Priya next Tuesday at 10am for 30 minutes","expected_tool":"create_event","must_mention":["Priya"]}
+{"id":"e008","utterance":"what do I have scheduled tomorrow?","expected_tool":"list_events","must_mention":[]}
+{"id":"e009","utterance":"reschedule my standup to 9:30am","expected_tool":"update_event","must_mention":[]}
+{"id":"e010","utterance":"have I met with Jordan in the last month?","expected_tool":"search_calendar_history","must_mention":["Jordan"]}
+{"id":"e011","utterance":"block 2 hours for deep work this afternoon","expected_tool":"create_event","must_mention":["deep work"]}
+{"id":"e012","utterance":"add lunch tomorrow at 12:30 for 1 hour","expected_tool":"create_event","must_mention":["lunch"]}
+{"id":"e013","utterance":"show me next week's schedule","expected_tool":"list_events","must_mention":[]}
+{"id":"e014","utterance":"when did we last do a product review?","expected_tool":"search_calendar_history","must_mention":["product review"]}
+{"id":"e015","utterance":"create a 1:1 with my manager Thursday at 11am","expected_tool":"create_event","must_mention":["1:1"]}
+{"id":"e016","utterance":"what's on Friday afternoon?","expected_tool":"list_events","must_mention":[]}
+{"id":"e017","utterance":"push my afternoon meeting back 30 minutes","expected_tool":"update_event","must_mention":[]}
+{"id":"e018","utterance":"schedule a workout tomorrow at 7am for an hour","expected_tool":"create_event","must_mention":["workout"]}
+{"id":"e019","utterance":"any meetings about the Q2 roadmap recently?","expected_tool":"search_calendar_history","must_mention":["roadmap"]}
+{"id":"e020","utterance":"book dinner tonight at 7pm for an hour","expected_tool":"create_event","must_mention":["dinner"]}
