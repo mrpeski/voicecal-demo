@@ -28,8 +28,16 @@ log = structlog.get_logger()
 os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key.get_secret_value())
 
 # Path for the SQLite file backing conversation sessions.
-# Lives alongside token.json in the backend directory by default.
-SESSIONS_DB_PATH = os.environ.get("VOICECAL_SESSIONS_DB", "sessions.db")
+# Lambda's /var/task is read-only, so default to /tmp there.
+def _default_sessions_db() -> str:
+    if env_path := os.environ.get("VOICECAL_SESSIONS_DB"):
+        return env_path
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return "/tmp/sessions.db"
+    return "sessions.db"
+
+
+SESSIONS_DB_PATH = _default_sessions_db()
 
 SYSTEM = """You are VoiceCal, a helpful calendar assistant.
 

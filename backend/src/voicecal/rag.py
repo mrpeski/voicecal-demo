@@ -6,6 +6,7 @@ Uses a persistent Chroma collection so restarts don't re-embed everything.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -20,9 +21,19 @@ from voicecal.settings import settings
 
 log = structlog.get_logger()
 
-# Persist to disk next to sessions.db / token.json so restarts are cheap.
-_CHROMA_DIR = Path(__file__).resolve().parents[2] / "chroma"
-_CHROMA_DIR.mkdir(exist_ok=True)
+# Persist to disk so restarts are cheap. Lambda's /var/task is read-only,
+# so prefer CHROMA_DIR env var if set, then /tmp on Lambda, else next to the
+# backend source for local dev.
+def _resolve_chroma_dir() -> Path:
+    if env_dir := os.environ.get("CHROMA_DIR"):
+        return Path(env_dir)
+    if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        return Path("/tmp/chroma")
+    return Path(__file__).resolve().parents[2] / "chroma"
+
+
+_CHROMA_DIR = _resolve_chroma_dir()
+_CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 
 _chroma = chromadb.PersistentClient(path=str(_CHROMA_DIR))
 _col = _chroma.get_or_create_collection("calendar_history")
