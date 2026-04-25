@@ -45,6 +45,8 @@ function ToolCallList({ calls }: { calls: ToolCallDisplay[] }) {
 
 export default function ResultCard({ result, onDismiss }: ResultCardProps) {
   if (!result) return null;
+  const showStreamingContent =
+    result.state === 'thinking' && (Boolean(result.text) || Boolean(result.toolCalls?.length));
 
   return (
     <div
@@ -72,40 +74,49 @@ export default function ResultCard({ result, onDismiss }: ResultCardProps) {
               &quot;{result.transcript}&quot;
             </div>
           )}
-          {result.toolCalls && <ToolCallList calls={result.toolCalls} />}
-          {result.text ? (
-            <div
-              style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65 }}
-              dangerouslySetInnerHTML={{ __html: mdToHtml(result.text) }}
-            />
-          ) : (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                color: 'var(--text2)',
-                fontSize: 13,
-              }}
-            >
-              <div style={{ display: 'flex', gap: 4 }}>
-                {[0, 1, 2].map((i) => (
-                  <span
-                    key={i}
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: 'var(--text3)',
-                      display: 'inline-block',
-                      animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
-                    }}
-                  />
-                ))}
+          <div
+            style={{
+              minHeight: 56,
+              maxHeight: showStreamingContent ? 240 : undefined,
+              overflowY: showStreamingContent ? 'auto' : 'visible',
+              paddingRight: showStreamingContent ? 2 : 0,
+            }}
+          >
+            {result.toolCalls && <ToolCallList calls={result.toolCalls} />}
+            {result.text ? (
+              <div
+                style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65 }}
+                dangerouslySetInnerHTML={{ __html: mdToHtml(result.text) }}
+              />
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  color: 'var(--text2)',
+                  fontSize: 13,
+                }}
+              >
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: 'var(--text3)',
+                        display: 'inline-block',
+                        animation: `bounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <span>Thinking…</span>
               </div>
-              <span>Thinking…</span>
-            </div>
-          )}
+            )}
+          </div>
         </>
       )}
 

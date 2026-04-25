@@ -60,7 +60,6 @@ export default function ZenView({
         <div style={{ minHeight: 60 }}>
           {result ? (
             <ResultCard
-              key={`${result.state}-${result.text ?? 'pending'}`}
               result={result}
               onDismiss={result.state === 'done' ? onDismissResult : undefined}
             />

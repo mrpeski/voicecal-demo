@@ -91,7 +91,6 @@ export default function PlanView({
         {/* Result card */}
         {result && (
           <ResultCard
-            key={result.state === 'done' ? result.text : 's'}
             result={result}
             onDismiss={
               result.state === 'done'

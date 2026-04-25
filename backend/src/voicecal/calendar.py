@@ -13,6 +13,20 @@ from googleapiclient.discovery import build
 from voicecal.settings import settings
 
 
+def _load_file_credentials(path: Path) -> Credentials:
+    if not path.exists():
+        raise RuntimeError(f"Google token file not found at {path}.")
+
+    creds = Credentials.from_authorized_user_file(str(path))
+    if not creds.valid:
+        if creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            path.write_text(creds.to_json())
+        else:
+            raise RuntimeError(f"Token at {path} is invalid and cannot refresh. Re-run OAuth flow.")
+    return creds
+
+
 @lru_cache(maxsize=1)
 def _get_service():
     """Load creds, refresh if expired, build the service. Cached per process.
@@ -24,33 +38,29 @@ def _get_service():
     2. File fallback (local dev): token.json from the OAuth installed-app flow.
        Only used when the three env vars aren't all set.
     """
+    path = Path(settings.google_credentials_path)
     if settings.has_google_env_creds:
-        creds = Credentials(
-            token=None,
-            refresh_token=settings.google_refresh_token.get_secret_value(),
-            client_id=settings.google_client_id.get_secret_value(),
-            client_secret=settings.google_client_secret.get_secret_value(),
-            token_uri=settings.google_token_uri,
-            scopes=settings.google_scopes,
-        )
-        creds.refresh(Request())  # Mint an access token now; surfaces auth errors at startup.
-    else:
-        path = Path(settings.google_credentials_path)
-        if not path.exists():
-            raise RuntimeError(
-                "No Google credentials available. Set GOOGLE_CLIENT_ID, "
-                "GOOGLE_CLIENT_SECRET, GOOGLE_REFRESH_TOKEN — or place a "
-                f"token.json at {path}."
+        try:
+            creds = Credentials(
+                token=None,
+                refresh_token=settings.google_refresh_token.get_secret_value(),
+                client_id=settings.google_client_id.get_secret_value(),
+                client_secret=settings.google_client_secret.get_secret_value(),
+                token_uri=settings.google_token_uri,
+                scopes=settings.google_scopes,
             )
-        creds = Credentials.from_authorized_user_file(str(path))
-        if not creds.valid:
-            if creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-                path.write_text(creds.to_json())
+            # Mint access token now so auth issues are surfaced immediately.
+            creds.refresh(Request())
+        except Exception as exc:
+            if path.exists():
+                creds = _load_file_credentials(path)
             else:
                 raise RuntimeError(
-                    f"Token at {path} is invalid and cannot refresh. Re-run OAuth flow."
-                )
+                    "Env Google credentials failed to refresh and no token file fallback "
+                    f"exists at {path}. Original error: {exc!r}"
+                ) from exc
+    else:
+        creds = _load_file_credentials(path)
 
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
