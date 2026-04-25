@@ -49,7 +49,16 @@ resource "aws_lambda_function" "api" {
   architectures = ["x86_64"]
 
   environment {
-    variables = merge(var.env_vars, var.secret_env_vars)
+    variables = merge(
+      var.env_vars,
+      var.secret_env_vars,
+      # FastAPI's CORSMiddleware enforces its own origin allowlist BEFORE
+      # API Gateway's CORS config matters. Pass the same origin to the
+      # backend via CORS_ORIGINS (JSON array — pydantic-settings parses it
+      # into list[str]). Star fallback keeps preflights working when
+      # cors_allow_origin is "*".
+      { CORS_ORIGINS = jsonencode([var.cors_allow_origin]) },
+    )
   }
 
   # CI updates image_uri via `aws lambda update-function-code`. Don't fight it.
