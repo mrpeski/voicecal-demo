@@ -99,8 +99,8 @@ async def run_agent(
     now = datetime.now(tz).strftime("%A %d %B %Y, %H:%M %Z")
     instructions = f"{SYSTEM}\n\nCurrent time: {now}\nUser timezone: {settings.user_timezone}"
 
-    use_mock_llm = settings.mock_llm if settings.mock_llm is not None else settings.mock_providers
-    if use_mock_llm:
+    # Only enable deterministic echo when explicitly requested.
+    if settings.mock_llm:
         response_text = f"You said: {user_message}"
         for word in response_text.split(" "):
             yield TokenEvent(text=word + " ")
