@@ -17,8 +17,10 @@ import os
 import time
 import uuid
 from collections.abc import AsyncIterator
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
@@ -79,11 +81,49 @@ def load_golden(path: Path = GOLDEN_PATH) -> list[GoldenScenario]:
     return rows
 
 
+def _seed_mock_events() -> None:
+    """Seed deterministic in-memory events for update/list scenarios."""
+    _events.clear()
+    tz = ZoneInfo(settings.user_timezone)
+    now = datetime.now(tz).replace(second=0, microsecond=0)
+    day = now.replace(hour=0, minute=0)
+
+    seeded = [
+        {
+            "id": "ev-afternoon-meeting",
+            "title": "Afternoon meeting",
+            "start": (day + timedelta(hours=15)).isoformat(),
+            "end": (day + timedelta(hours=16)).isoformat(),
+            "attendees": ["team@example.com"],
+            "description": "Daily sync",
+        },
+        {
+            "id": "ev-standup",
+            "title": "Standup",
+            "start": (day + timedelta(days=1, hours=9)).isoformat(),
+            "end": (day + timedelta(days=1, hours=9, minutes=30)).isoformat(),
+            "attendees": ["eng@example.com"],
+            "description": "Team standup",
+        },
+        {
+            "id": "ev-product-review",
+            "title": "Product review",
+            "start": (day + timedelta(days=2, hours=14)).isoformat(),
+            "end": (day + timedelta(days=2, hours=15)).isoformat(),
+            "attendees": ["pm@example.com", "design@example.com"],
+            "description": "Roadmap and milestones",
+        },
+    ]
+    for ev in seeded:
+        _events[ev["id"]] = ev
+
+
 async def _run_one(scenario: GoldenScenario) -> EvalResult:
     start = time.monotonic()
     actual_tools: list[str] = []
     response_text = ""
     conversation_id = f"eval-{scenario.id}-{uuid.uuid4().hex[:6]}"
+    _seed_mock_events()
 
     try:
         async for event in run_agent(scenario.utterance, conversation_id):

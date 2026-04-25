@@ -13,7 +13,6 @@ from zoneinfo import ZoneInfo
 
 import chromadb
 import structlog
-from agents import function_tool
 from openai import AsyncOpenAI
 
 from voicecal.calendar import list_events as gcal_list_events
@@ -186,5 +185,5 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
     )
     return [
         {"text": doc, "metadata": meta}
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0])
+        for doc, meta in zip(results["documents"][0], results["metadatas"][0], strict=False)
     ]

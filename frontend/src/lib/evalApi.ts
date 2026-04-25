@@ -1,4 +1,5 @@
 import { apiUrl } from "./apiBase";
+import { toApiError } from "./apiError";
 
 export type EvalStatus = "running" | "pass" | "fail" | "error";
 
@@ -37,7 +38,10 @@ export async function runEvals({
   });
 
   if (!res.ok || !res.body) {
-    throw new Error(`Eval request failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) {
+      throw await toApiError(res, "Eval request failed");
+    }
+    throw new Error("Eval response stream was empty");
   }
 
   const reader = res.body.getReader();

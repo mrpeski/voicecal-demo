@@ -1,5 +1,6 @@
 import type { VoiceResult } from "./types";
 import { apiUrl } from "./apiBase";
+import { toApiError } from "./apiError";
 
 interface UploadOptions {
   endpoint?: string;
@@ -31,7 +32,7 @@ export async function uploadVoice(
 
   const res = await fetch(apiUrl(endpoint), { method: "POST", body: form, signal });
   if (!res.ok) {
-    throw new Error(`Voice upload failed: ${res.status} ${res.statusText}`);
+    throw await toApiError(res, "Voice upload failed");
   }
   return res.json() as Promise<VoiceResult>;
 }

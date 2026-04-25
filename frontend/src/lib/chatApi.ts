@@ -1,5 +1,6 @@
 import type { StreamEvent, ToolCallEvent } from "./types";
 import { apiUrl } from "./apiBase";
+import { toApiError } from "./apiError";
 
 export interface BackendEvent {
   id: string;
@@ -13,7 +14,7 @@ export interface BackendEvent {
 export async function fetchEvents(signal?: AbortSignal): Promise<BackendEvent[]> {
   const res = await fetch(apiUrl("/api/events"), { signal });
   if (!res.ok) {
-    throw new Error(`Fetch events failed: ${res.status} ${res.statusText}`);
+    throw await toApiError(res, "Fetch events failed");
   }
   const data = (await res.json()) as { events: BackendEvent[] };
   return data.events ?? [];
@@ -61,7 +62,10 @@ export async function sendChat(
   });
 
   if (!res.ok || !res.body) {
-    throw new Error(`Chat request failed: ${res.status} ${res.statusText}`);
+    if (!res.ok) {
+      throw await toApiError(res, "Chat request failed");
+    }
+    throw new Error("Chat response stream was empty");
   }
 
   const reader = res.body.getReader();
