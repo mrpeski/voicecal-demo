@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { COLORS, INITIAL_EVENTS, TWEAK_DEFAULTS } from './constants';
-import { cleanText, genId, parseEventBlocks, todayStr } from './utils';
+import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
