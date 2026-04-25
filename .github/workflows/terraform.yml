@@ -124,8 +124,12 @@ jobs:
         if: github.event.inputs.action == 'apply'
         run: terraform apply -auto-approve -no-color
 
+      # CloudFront destroys are slow (15–25 min while AWS deprovisions edge
+      # locations). Bump the job timeout so a destroy in progress doesn't
+      # get killed mid-flight and leave the state half-applied.
       - name: Terraform destroy
         if: github.event.inputs.action == 'destroy'
+        timeout-minutes: 45
         run: terraform destroy -auto-approve -no-color
 
       - name: Show outputs
