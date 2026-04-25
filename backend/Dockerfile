@@ -15,10 +15,15 @@ COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.9.0 \
 
 # Web Adapter config (env vars it reads on boot):
 #   PORT                       — port uvicorn listens on
-#   AWS_LWA_INVOKE_MODE        — "response_stream" enables SSE passthrough
+#   AWS_LWA_INVOKE_MODE        — "buffered" for API Gateway HTTP API. Note:
+#       "response_stream" only works with Lambda Function URLs (which we
+#       can't use on new accounts due to Block Public Access). Buffered
+#       mode means SSE responses are accumulated server-side and delivered
+#       as a single response — fine for short eval/chat turns; the agent
+#       loop is bounded at 6 iterations so total payload stays small.
 #   AWS_LWA_READINESS_CHECK_PATH — adapter polls this before routing traffic
 ENV PORT=8000 \
-    AWS_LWA_INVOKE_MODE=response_stream \
+    AWS_LWA_INVOKE_MODE=buffered \
     AWS_LWA_READINESS_CHECK_PATH=/health \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
