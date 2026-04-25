@@ -8,13 +8,29 @@ VoiceCal deploys to AWS:
 
 ## One-time setup
 
-### 1. Bootstrap with Terraform
+### 1a. Bootstrap the Terraform state bucket (run once, ever)
+
+State for the main stack lives in S3 with native S3 locking
+(`use_lockfile`, requires Terraform >= 1.10). The bucket itself is created by
+a tiny module with **local** state — it has to be, because chicken-and-egg.
+
+```bash
+cd infra/bootstrap
+terraform init
+terraform apply
+# Note the `bucket` output, e.g. voicecal-tfstate-123456789012
+```
+
+Then edit `infra/backend.tf` and replace `REPLACE_WITH_ACCOUNT_ID` with your
+account id (or pass `-backend-config="bucket=..."` to `terraform init` below).
+
+### 1b. Bootstrap the main stack
 
 ```bash
 cd infra
 cp terraform.tfvars.example terraform.tfvars
 # Fill in OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_* in secret_env_vars
-terraform init
+terraform init    # configures the S3 backend
 terraform apply
 ```
 
