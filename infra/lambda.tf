@@ -78,3 +78,15 @@ resource "aws_lambda_function_url" "api" {
     max_age       = 3600
   }
 }
+
+# AuthType=NONE on the Function URL doesn't bypass IAM; you still need a
+# resource-based policy permitting lambda:InvokeFunctionUrl from "*" with
+# the matching FunctionUrlAuthType condition. Without this, every request
+# returns 403 AccessDeniedException.
+resource "aws_lambda_permission" "url_public" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.api.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
