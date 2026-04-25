@@ -54,16 +54,59 @@ aws lambda update-function-code \
   --image-uri <ecr-url>:latest
 ```
 
-### 3. Configure GitHub for CI
+### 3. Configure GitHub secrets/variables
 
 Set in **repo → Settings → Secrets and variables → Actions**:
 
-- Secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-- Variables: `AWS_REGION`, `ECR_REPOSITORY` (e.g. `voicecal-api`), `LAMBDA_FUNCTION` (e.g. `voicecal-api`), `FRONTEND_BUCKET` (from Terraform output), `VITE_API_BASE_URL` (the Lambda Function URL, no trailing slash)
+**Secrets** (used by both workflows):
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`
+
+**Variables**:
+- `AWS_REGION` (e.g. `us-east-1`)
+- `TF_STATE_BUCKET` — output from the bootstrap step (e.g. `voicecal-tfstate-123456789012`)
+- `ECR_REPOSITORY` (e.g. `voicecal-api`)
+- `LAMBDA_FUNCTION` (e.g. `voicecal-api`)
+- `FRONTEND_BUCKET` — output from `terraform apply`
+- `VITE_API_BASE_URL` — Lambda Function URL (no trailing slash), output from `terraform apply`
+- `CORS_ALLOW_ORIGIN` (optional) — defaults to `*`; tighten to your S3 website URL after first deploy
 
 ### 4. Tighten CORS
 
-After first frontend deploy, set `cors_allow_origin` in `terraform.tfvars` to the S3 website URL and `terraform apply` again.
+After first frontend deploy, set the `CORS_ALLOW_ORIGIN` repo variable to the S3 website URL and re-run the **Terraform / apply** workflow.
+
+## GitHub-driven lifecycle
+
+Two workflows handle everything:
+
+### `Terraform` workflow (provision / destroy)
+
+Manual trigger from **Actions → Terraform → Run workflow**:
+- `action: plan` — read-only diff
+- `action: apply` — provision or update
+- `action: destroy` — tear it all down. Requires `confirm: destroy` in the second input.
+
+Reads Terraform state from the S3 backend (locked via `use_lockfile`).
+Secrets are passed via `TF_VAR_secret_env_vars` (assembled inline from
+GitHub secrets) — never written to disk.
+
+### `Deploy` workflow (build & ship app code)
+
+Manual trigger (or uncomment the `push: main` block in
+`.github/workflows/deploy.yml` to auto-deploy):
+- builds the backend image, pushes to ECR, calls `update-function-code`
+- builds the frontend with `VITE_API_BASE_URL` baked in, syncs `dist/` to S3
+
+This workflow does **not** touch Terraform — it only updates the artifacts
+that Terraform-managed resources host.
+
+### Typical flow
+
+1. `Terraform / apply` (one time) → infra exists, copy outputs into repo vars
+2. `Deploy` (every code change) → ships new image + frontend bundle
+3. `Terraform / destroy` → tears it all down (ECR + S3 frontend are
+   `force_delete`/`force_destroy`, so this works even with live content)
 
 ## Subsequent deploys
 

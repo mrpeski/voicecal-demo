@@ -1,16 +1,15 @@
-# S3 remote state backend.
+# S3 remote state backend (partial config).
 #
-# The bucket below is created by the one-time bootstrap module in ./bootstrap/.
-# Backend config does not allow variables — replace <YOUR_ACCOUNT_ID> with the
-# concrete account id (or use partial config + `-backend-config=...` flags on
-# `terraform init`, see DEPLOY.md).
+# The bucket is created by the one-time bootstrap module in ./bootstrap/. We
+# leave `bucket` empty here so it's supplied at init time via
+# `-backend-config=bucket=...` — that lets the same Terraform code work across
+# accounts/forks without editing this file.
 #
 # Locking: Terraform 1.10+ supports native S3 state locking via `use_lockfile`,
 # so we no longer need a DynamoDB table.
 
 terraform {
   backend "s3" {
-    bucket       = "voicecal-tfstate-REPLACE_WITH_ACCOUNT_ID"
     key          = "voicecal/main.tfstate"
     region       = "us-east-1"
     encrypt      = true
