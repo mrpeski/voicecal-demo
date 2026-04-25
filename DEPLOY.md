@@ -2,7 +2,7 @@
 
 VoiceCal deploys to AWS:
 
-- **Backend** → Lambda (container image, ECR) with a Function URL using `RESPONSE_STREAM` invoke mode (SSE works end-to-end). Runs the unmodified FastAPI app via the [AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter).
+- **Backend** → Lambda (container image, ECR) fronted by an HTTP API Gateway (catch-all `ANY /{proxy+}` route). Runs the unmodified FastAPI app via the [AWS Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter). API Gateway is used instead of a Lambda Function URL because new AWS accounts (2024+) have "Block Public Access for Lambda" enabled by default, which blocks `Principal:"*"` resource policies on Function URLs at the AWS edge.
 - **Frontend** → static SPA on S3 (public website hosting, SPA fallback to `index.html`).
 - **CI/CD** → `.github/workflows/deploy.yml`: build & push image, update Lambda, build & sync frontend.
 
@@ -39,7 +39,7 @@ terraform init    # configures the S3 backend
 terraform apply
 ```
 
-Outputs you'll need: `ecr_repository_url`, `lambda_function_name`, `lambda_function_url`, `frontend_bucket`, `frontend_url`.
+Outputs you'll need: `ecr_repo`, `lambda_function_name`, `api_url` (the HTTP API Gateway endpoint — paste into `VITE_API_BASE_URL`), `frontend_bucket`, `frontend_url`.
 
 ### 2. First image push (Terraform creates ECR but not the image)
 
@@ -77,7 +77,7 @@ Lambda env vars):
 - `ECR_REPOSITORY` (e.g. `voicecal-api`)
 - `LAMBDA_FUNCTION` (e.g. `voicecal-api`)
 - `FRONTEND_BUCKET` — output from `terraform apply`
-- `VITE_API_BASE_URL` — Lambda Function URL (no trailing slash), output from `terraform apply`
+- `VITE_API_BASE_URL` — API Gateway endpoint (no trailing slash), `api_url` output from `terraform apply`. Format: `https://<id>.execute-api.<region>.amazonaws.com`
 - `CORS_ALLOW_ORIGIN` (optional) — defaults to `*`; tighten to your S3 website URL after first deploy
 
 ### 4. Tighten CORS

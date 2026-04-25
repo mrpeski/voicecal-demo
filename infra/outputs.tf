@@ -7,9 +7,9 @@ output "lambda_function_name" {
 }
 
 # This is the backend URL. Paste into frontend as VITE_API_BASE_URL.
-# Format: https://<id>.lambda-url.<region>.on.aws
+# Format: https://<api-id>.execute-api.<region>.amazonaws.com
 output "api_url" {
-  value = aws_lambda_function_url.api.function_url
+  value = aws_apigatewayv2_api.api.api_endpoint
 }
 
 output "frontend_bucket" {
