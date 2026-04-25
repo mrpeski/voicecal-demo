@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+aws_region        = "us-east-1"
+lambda_memory_mb  = 1024
+lambda_timeout_sec = 120
+
+# Leave this as "*" for the first apply. After frontend deploys, update to your
+# S3 website URL and re-apply to lock CORS down.
+# cors_allow_origin = "http://voicecal-web-xxx.s3-website-us-east-1.amazonaws.com"
+
+secret_env_vars = {
+  OPENAI_API_KEY       = "sk-..."
+  ANTHROPIC_API_KEY    = "sk-ant-..."
+  GOOGLE_CLIENT_ID     = "..."
+  GOOGLE_CLIENT_SECRET = "..."
+  GOOGLE_REFRESH_TOKEN = "..."
+}
