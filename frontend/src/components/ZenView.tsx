@@ -4,34 +4,6 @@ import { formatDate, formatTime } from '../utils';
 import ResultCard from './ResultCard';
 import Waveform from './Waveform';
 
-// Types
-interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string;
-  startTime?: string;
-  endTime?: string;
-  colorIndex: number;
-  attendees?: string[];
-  description?: string;
-}
-
-interface Tweaks {
-  userName: string;
-  [key: string]: string | number | boolean;
-}
-
-interface ZenViewProps {
-  tweaks: Tweaks;
-  result: { state: string; text: string; events?: CalendarEvent[] } | null;
-  onDismissResult: () => void;
-  listening: boolean;
-  onMicClick: () => void;
-  onSend: (message: string) => void;
-  upcomingEvents: CalendarEvent[];
-  onDeleteEvent: (eventId: string) => void;
-}
-
 export default function ZenView({
   tweaks,
   result,
@@ -45,7 +17,7 @@ export default function ZenView({
   const [textMode, setTextMode] = useState(false);
   const [input, setInput] = useState('');
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   function handleSend() {
     const t = input.trim();
@@ -70,39 +42,26 @@ export default function ZenView({
       >
         {/* Greeting / result area */}
         <div style={{ minHeight: 60 }}>
-          {/* {result ? ( */}
-          {/*   <ResultCard */}
-          {/*     key={result.state === 'done' ? result.text : 's'} */}
-          {/*     result={result} */}
-          {/*     onDismiss={result.state === 'done' ? onDismissResult : undefined} */}
-          {/*   /> */}
-          {/* ) : ( */}
-          {/*   <div */}
-          {/*     style={{ */}
-          {/*       textAlign: 'center', */}
-          {/*       color: 'var(--text3)', */}
-          {/*       fontSize: 13, */}
-          {/*       animation: 'fadeIn 0.5s ease', */}
-          {/*     }} */}
-          {/*   > */}
-          {/*     {tweaks.userName !== 'User' */}
-          {/*       ? `Hi, ${tweaks.userName}.` */}
-          {/*       : 'Tap the mic to get started.'} */}
-          {/*   </div> */}
-          {/* )} */}
-
-          <div
-            style={{
-              textAlign: 'center',
-              color: 'var(--text3)',
-              fontSize: 13,
-              animation: 'fadeIn 0.5s ease',
-            }}
-          >
-            {tweaks.userName !== 'User'
-              ? `Hi, ${tweaks.userName}.`
-              : 'Tap the mic to get started.'}
-          </div>
+          {result ? (
+            <ResultCard
+              key={`${result.state}-${result.text ?? 'pending'}`}
+              result={result}
+              onDismiss={result.state === 'done' ? onDismissResult : undefined}
+            />
+          ) : (
+            <div
+              style={{
+                textAlign: 'center',
+                color: 'var(--text3)',
+                fontSize: 13,
+                animation: 'fadeIn 0.5s ease',
+              }}
+            >
+              {tweaks.userName !== 'User'
+                ? `Hi, ${tweaks.userName}.`
+                : 'Tap the mic to get started.'}
+            </div>
+          )}
         </div>
 
         {/* Mic and waveform */}

@@ -1,18 +1,5 @@
 import ModeToggle from './ModeToggle';
 
-type Mode = 'zen' | 'plan' | 'insights';
-
-
-interface HeaderProps {
-  mode: Mode;
-  setMode: (mode: Mode) => void;
-  darkMode: boolean;
-  onToggleDarkMode: () => void;
-  speaking: boolean;
-  onStopSpeaking: () => void;
-  onOpenSettings: () => void;
-}
-
 export default function Header({
   mode,
   setMode,

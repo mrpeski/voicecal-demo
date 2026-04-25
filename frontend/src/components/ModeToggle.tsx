@@ -1,10 +1,3 @@
-type Mode = 'zen' | 'plan' | 'insights';
-
-interface ModeToggleProps {
-  mode: Mode;
-  setMode: (mode: Mode) => void;
-}
-
 const MODES: { id: Mode; label: string }[] = [
   { id: 'zen', label: 'Zen' },
   { id: 'plan', label: 'Plan' },

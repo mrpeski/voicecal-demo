@@ -2,30 +2,6 @@ import { useState } from 'react';
 import { DAYS, DISCOVERY_PROMPTS } from '../constants';
 import { todayStr, offsetStr, timeToMins, mdToHtml } from '../utils';
 
-interface CalendarEvent {
-  title: string;
-  date: string;
-  startTime?: string;
-  endTime?: string;
-}
-
-interface Tweaks {
-  userName: string;
-  workStart: string;
-  workEnd: string;
-}
-
-interface StatCard {
-  label: string;
-  value: string | number;
-  sub: string;
-}
-
-interface InsightsViewProps {
-  events: CalendarEvent[];
-  tweaks: Tweaks;
-}
-
 export default function InsightsView({ events, tweaks }: InsightsViewProps) {
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,7 +96,7 @@ Give 3 short, specific, actionable insights about this person's schedule pattern
     setLoading(false);
   }
 
-  const statCards: StatCard[] = [
+  const statCards: InsightsStatCard[] = [
     { label: 'Free today', value: `${freeHrs}h`, sub: `${busyHrs}h busy` },
     { label: 'This week', value: thisWeekEvs.length, sub: 'events scheduled' },
     { label: 'Busiest day', value: DAYS[busiestDow], sub: `${byDow[busiestDow]} events avg` },

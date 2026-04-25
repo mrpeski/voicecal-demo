@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, Dispatch, SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { COLORS, INITIAL_EVENTS, TWEAK_DEFAULTS } from './constants';
 import { cleanText, genId, parseEventBlocks, todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
+import type { VoiceResult } from './lib/types';
 
 import Header from './components/Header';
 import ZenView from './components/ZenView';
@@ -12,46 +13,19 @@ import InsightsView from './components/InsightsView';
 import SettingsPanel from './components/SettingsPanel';
 import EditModeTweaks from './components/EditModeTweaks';
 
-// ── Types ───────────────────────────────────────────────────────────────────
-
-type Event = {
-  id: string;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  description?: string;
-  colorIndex: number;
-};
-
-type TweakSettings = typeof TWEAK_DEFAULTS;
-
-type Mode = 'zen' | 'plan' | 'insights';
-
-type ResultState = 'thinking' | 'done';
-
-type QueryResult = {
-  state: ResultState;
-  transcript?: string;
-  text?: string;
-  newEvents?: Event[];
-} | null;
-
-// ── Component ────────────────────────────────────────────────────────────────
-
 export default function App() {
   // ── Persisted state ─────────────────────────────────────────────────────
-  const [tweaks, setTweaks] = usePersistentState<'vc_tweaks3', TweakSettings>('vc_tweaks3', TWEAK_DEFAULTS, {
+  const [tweaks, setTweaks] = usePersistentState<VoiceCalTweakSettings>('vc_tweaks3', TWEAK_DEFAULTS, {
     mergeDefaults: true,
   });
-  const [events, setEvents] = usePersistentState<'vc_events2', Event[]>('vc_events2', INITIAL_EVENTS as Event[]);
-  const [mode, setMode] = usePersistentState<'vc_mode', Mode>('vc_mode', 'zen');
+  const [events, setEvents] = usePersistentState<VoiceCalEvent[]>('vc_events2', INITIAL_EVENTS as VoiceCalEvent[]);
+  const [mode, setMode] = usePersistentState<Mode>('vc_mode', 'zen');
 
   // ── Ephemeral UI state ──────────────────────────────────────────────────
-  const [zenResult, setZenResult] = useState<QueryResult>(null);
-  const [planResult, setPlanResult] = useState<QueryResult>(null);
-  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
-  const [editMode, setEditMode] = useState<boolean>(false);
+  const [zenResult, setZenResult] = useState<VoiceCalQueryResult>(null);
+  const [planResult, setPlanResult] = useState<VoiceCalQueryResult>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   // ── Voice I/O ───────────────────────────────────────────────────────────
 
@@ -72,13 +46,13 @@ export default function App() {
   }, []);
 
   // ── Helpers ─────────────────────────────────────────────────────────────
-  function updateTweak<K extends keyof TweakSettings>(k: K, v: TweakSettings[K]) {
-    setTweaks((t: TweakSettings) => ({ ...t, [k]: v }));
+  function updateTweak<K extends keyof VoiceCalTweakSettings>(k: K, v: VoiceCalTweakSettings[K]) {
+    setTweaks((t) => ({ ...t, [k]: v }));
     window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [k]: v } }, '*');
   }
 
   function deleteEvent(id: string) {
-    setEvents((list: Event[]) => list.filter((e: Event) => e.id !== id));
+    setEvents((list) => list.filter((e) => e.id !== id));
   }
 
   function dismissZenResult() {
@@ -91,7 +65,8 @@ export default function App() {
   // ── AI query handler ────────────────────────────────────────────────────
   async function processQuery(text: string, transcript: string) {
     if (!text.trim()) return;
-    const setResult: Dispatch<SetStateAction<QueryResult>> = mode === 'plan' ? setPlanResult : setZenResult;
+    const setResult: Dispatch<SetStateAction<VoiceCalQueryResult>> =
+      mode === 'plan' ? setPlanResult : setZenResult;
     setResult({ state: 'thinking', transcript });
 
     const today = new Date();
@@ -132,25 +107,46 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
       const { creates, deletes } = parseEventBlocks(raw);
       const clean = cleanText(raw);
 
-      let newEvs: Event[] = [];
+      let newEvs: VoiceCalEvent[] = [];
       if (creates.length) {
-        newEvs = creates.map((ev, i) => ({
-          ...ev,
-          id: genId(),
-          colorIndex: (events.length + i) % COLORS.length,
-        }));
-        setEvents((p: Event[]) => [...p, ...newEvs]);
+        newEvs = creates.map((payload, i) => {
+          const record = payload as Record<string, unknown>;
+          const pickString = (value: unknown) => (typeof value === 'string' ? value : undefined);
+          const title = pickString(record.title)?.trim() || 'New event';
+          const date = pickString(record.date) || todayStr();
+          const startTime = pickString(record.startTime);
+          const endTime = pickString(record.endTime);
+          const description = pickString(record.description);
+          return {
+            id: genId(),
+            title,
+            date,
+            startTime,
+            endTime,
+            description,
+            colorIndex: (events.length + i) % COLORS.length,
+          } satisfies VoiceCalEvent;
+        });
+        setEvents((p) => [...p, ...newEvs]);
       }
       if (deletes.length) {
         const ids = new Set(deletes.map((d) => d.id));
-        setEvents((p: Event[]) => p.filter((e) => !ids.has(e.id)));
+        setEvents((p) => p.filter((e) => !ids.has(e.id)));
       }
 
       setResult({
         state: 'done',
         transcript,
         text: clean,
-        newEvents: newEvs.length ? newEvs : undefined,
+        newEvents: newEvs.length
+          ? newEvs.map(({ title, date, startTime, endTime, colorIndex }) => ({
+              title,
+              date,
+              startTime,
+              endTime,
+              colorIndex,
+            }))
+          : undefined,
       });
     } catch {
       const err = 'Sorry, something went wrong. Please try again.';
@@ -159,10 +155,30 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
   }
 
   // ── Speech recognition ──────────────────────────────────────────────────
-  const setActiveResult: Dispatch<SetStateAction<QueryResult>> = mode === 'plan' ? setPlanResult : setZenResult;
+  const setActiveResult: Dispatch<SetStateAction<VoiceCalQueryResult>> =
+    mode === 'plan' ? setPlanResult : setZenResult;
 
-  const { recording: listening, pending, start: startListening, stop: stopListening } = useVoiceInteraction({
-    onResult: (data: QueryResult) => setActiveResult(data)
+  function handleVoiceResult(result: VoiceResult) {
+    setActiveResult({
+      state: 'done',
+      transcript: result.transcript,
+      text: result.response_text,
+    });
+  }
+
+  function toResultCard(result: VoiceCalQueryResult): ResultCardResult | undefined {
+    if (!result) return undefined;
+    const normalizedState: ResultCardState = result.state === 'done' ? 'done' : 'thinking';
+    return {
+      state: normalizedState,
+      transcript: result.transcript,
+      text: result.text,
+      newEvents: result.newEvents,
+    };
+  }
+
+  const { recording: listening, start: startListening, stop: stopListening } = useVoiceInteraction({
+    onResult: handleVoiceResult,
   });
 
   function handleMicClick() {
@@ -170,16 +186,23 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
     else startListening();
   }
 
+  const updateEditModeTweak = <K extends keyof EditModeTweaksState>(
+    key: K,
+    value: EditModeTweaksState[K],
+  ) => {
+    updateTweak(key, value as VoiceCalTweakSettings[K]);
+  };
+
   // ── Derived: upcoming events ────────────────────────────────────────────
   const upcomingEvents = useMemo(
     () =>
       [...events]
-        .sort((a: Event, b: Event) =>
+        .sort((a, b) =>
           a.date !== b.date
             ? a.date.localeCompare(b.date)
             : (a.startTime || '').localeCompare(b.startTime || '')
         )
-        .filter((e: Event) => e.date >= todayStr())
+        .filter((e) => e.date >= todayStr())
         .slice(0, 8),
     [events]
   );
@@ -208,11 +231,11 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
       {mode === 'zen' && (
         <ZenView
           tweaks={tweaks}
-          result={zenResult}
+          result={toResultCard(zenResult) ?? null}
           onDismissResult={dismissZenResult}
           listening={listening}
           onMicClick={handleMicClick}
-          onSend={(t: string) => processQuery(t, t)}
+          onSend={(t) => processQuery(t, t)}
           upcomingEvents={upcomingEvents}
           onDeleteEvent={deleteEvent}
         />
@@ -222,7 +245,7 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
         <PlanView
           events={events}
           onQuery={processQuery}
-          result={planResult}
+          result={toResultCard(planResult)}
           onDismissResult={dismissPlanResult}
           onDeleteEvent={deleteEvent}
           tweaks={tweaks}
@@ -240,8 +263,12 @@ For entertainment questions: give specific titles with one-line reasons. Be dire
 
       {editMode && (
         <EditModeTweaks
-          tweaks={tweaks}
-          updateTweak={updateTweak}
+          tweaks={{
+            userName: tweaks.userName,
+            accentHue: tweaks.accentHue,
+            darkMode: tweaks.darkMode,
+          }}
+          updateTweak={updateEditModeTweak}
           mode={mode}
           setMode={setMode}
         />

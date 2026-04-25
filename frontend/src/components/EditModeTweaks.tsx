@@ -1,17 +1,4 @@
-import ModeToggle, { type Mode } from './ModeToggle';
-
-export interface Tweaks {
-  userName: string;
-  accentHue: number;
-  darkMode: boolean;
-}
-
-interface EditModeTweaksProps {
-  tweaks: Tweaks;
-  updateTweak: <K extends keyof Tweaks>(key: K, value: Tweaks[K]) => void;
-  mode: Mode;
-  setMode: (mode: Mode) => void;
-}
+import ModeToggle from './ModeToggle';
 
 export default function EditModeTweaks({ tweaks, updateTweak, mode, setMode }: EditModeTweaksProps) {
   return (

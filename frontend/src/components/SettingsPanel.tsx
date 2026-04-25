@@ -1,38 +1,3 @@
-interface Settings {
-  userName: string;
-  timezone: string;
-  workStart: string;
-  workEnd: string;
-  defaultDuration: number;
-  accentHue: number;
-  darkMode: boolean;
-}
-
-type FieldType = 'text' | 'number' | 'select' | 'workrange' | 'hue' | 'theme';
-
-interface Field {
-  label: string;
-  key: keyof Settings;
-  type: FieldType;
-  placeholder?: string;
-  options?: string[];
-  min?: number;
-  max?: number;
-  step?: number;
-}
-
-interface Section {
-  section: string;
-  fields: Field[];
-}
-
-interface SettingsPanelProps {
-  open: boolean;
-  onClose: () => void;
-  settings: Settings;
-  onChange: (key: keyof Settings, value: string | number | boolean) => void;
-}
-
 const INPUT_STYLE = {
   width: '100%',
   background: 'var(--surface2)',
@@ -45,7 +10,7 @@ const INPUT_STYLE = {
   fontFamily: 'DM Sans,sans-serif',
 };
 
-const SECTIONS: Section[] = [
+const SECTIONS: SettingsPanelSection[] = [
   {
     section: 'Profile',
     fields: [{ label: 'Your name', key: 'userName', type: 'text', placeholder: 'e.g. Alex' }],
@@ -88,6 +53,10 @@ const SECTIONS: Section[] = [
     ],
   },
 ];
+
+function isSettingsKey(key: SettingsPanelField['key']): key is keyof SettingsPanelSettings {
+  return key !== 'work';
+}
 
 export default function SettingsPanel({ open, onClose, settings, onChange }: SettingsPanelProps) {
   return (
@@ -170,129 +139,173 @@ export default function SettingsPanel({ open, onClose, settings, onChange }: Set
                 {section}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {fields.map((f) => (
-                  <div key={f.key}>
-                    <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
-                      {f.label}
-                    </div>
-
-                    {f.type === 'text' && (
-                      <input
-                        value={settings[f.key]}
-                        onChange={(e) => onChange(f.key, e.target.value)}
-                        style={INPUT_STYLE}
-                        placeholder={f.placeholder}
-                      />
-                    )}
-
-                    {f.type === 'number' && (
-                      <input
-                        type="number"
-                        value={settings[f.key]}
-                        onChange={(e) => onChange(f.key, Number(e.target.value))}
-                        style={INPUT_STYLE}
-                        min={f.min}
-                        max={f.max}
-                        step={f.step}
-                      />
-                    )}
-
-                    {f.type === 'select' && (
-                      <select
-                        value={settings[f.key]}
-                        onChange={(e) => onChange(f.key, e.target.value)}
-                        style={INPUT_STYLE}
-                      >
-                        {f.options?.map((o) => (
-                          <option key={o}>{o}</option>
-                        ))}
-                      </select>
-                    )}
-
-                    {f.type === 'workrange' && (
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <input
-                          type="time"
-                          value={settings.workStart}
-                          onChange={(e) => onChange('workStart', e.target.value)}
-                          style={{ ...INPUT_STYLE, flex: 1 }}
-                        />
-                        <span style={{ color: 'var(--text3)', fontSize: 12 }}>–</span>
-                        <input
-                          type="time"
-                          value={settings.workEnd}
-                          onChange={(e) => onChange('workEnd', e.target.value)}
-                          style={{ ...INPUT_STYLE, flex: 1 }}
-                        />
+                {fields.map((field) => {
+                  if (field.type === 'workrange') {
+                    return (
+                      <div key={field.key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <input
+                            type="time"
+                            value={settings.workStart}
+                            onChange={(e) => onChange('workStart', e.target.value)}
+                            style={{ ...INPUT_STYLE, flex: 1 }}
+                          />
+                          <span style={{ color: 'var(--text3)', fontSize: 12 }}>–</span>
+                          <input
+                            type="time"
+                            value={settings.workEnd}
+                            onChange={(e) => onChange('workEnd', e.target.value)}
+                            style={{ ...INPUT_STYLE, flex: 1 }}
+                          />
+                        </div>
                       </div>
-                    )}
+                    );
+                  }
 
-                    {f.type === 'hue' && (
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                        <input
-                          type="range"
-                          min={0}
-                          max={360}
-                          value={settings.accentHue}
-                          onChange={(e) => onChange('accentHue', Number(e.target.value))}
-                          style={{
-                            flex: 1,
-                            accentColor: `oklch(68% 0.16 ${settings.accentHue})`,
-                          }}
-                        />
+                  if (field.type === 'hue') {
+                    return (
+                      <div key={field.key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <input
+                            type="range"
+                            min={0}
+                            max={360}
+                            value={settings.accentHue}
+                            onChange={(e) => onChange('accentHue', Number(e.target.value))}
+                            style={{
+                              flex: 1,
+                              accentColor: `oklch(68% 0.16 ${settings.accentHue})`,
+                            }}
+                          />
+                          <div
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: '50%',
+                              background: `oklch(68% 0.16 ${settings.accentHue})`,
+                              flexShrink: 0,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (field.type === 'theme') {
+                    return (
+                      <div key={field.key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
                         <div
                           style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: '50%',
-                            background: `oklch(68% 0.16 ${settings.accentHue})`,
-                            flexShrink: 0,
+                            display: 'flex',
+                            background: 'var(--surface2)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 8,
+                            padding: 2,
+                            gap: 1,
+                            width: 'fit-content',
                           }}
+                        >
+                          {[
+                            { id: true, label: 'Dark' },
+                            { id: false, label: 'Light' },
+                          ].map(({ id, label }) => (
+                            <button
+                              key={label}
+                              onClick={() => onChange('darkMode', id)}
+                              style={{
+                                background:
+                                  settings.darkMode === id ? 'var(--surface3)' : 'transparent',
+                                border: 'none',
+                                borderRadius: 6,
+                                padding: '5px 14px',
+                                color:
+                                  settings.darkMode === id ? 'var(--text)' : 'var(--text3)',
+                                fontSize: 12,
+                                fontWeight: settings.darkMode === id ? 500 : 400,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                fontFamily: 'DM Sans,sans-serif',
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (!isSettingsKey(field.key)) {
+                    return null;
+                  }
+
+                  const key = field.key;
+
+                  if (field.type === 'text') {
+                    return (
+                      <div key={key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
+                        <input
+                          value={settings[key] as string}
+                          onChange={(e) => onChange(key, e.target.value)}
+                          style={INPUT_STYLE}
+                          placeholder={field.placeholder}
                         />
                       </div>
-                    )}
+                    );
+                  }
 
-                    {f.type === 'theme' && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          background: 'var(--surface2)',
-                          border: '1px solid var(--border)',
-                          borderRadius: 8,
-                          padding: 2,
-                          gap: 1,
-                          width: 'fit-content',
-                        }}
-                      >
-                        {[
-                          { id: true, label: 'Dark' },
-                          { id: false, label: 'Light' },
-                        ].map(({ id, label }) => (
-                          <button
-                            key={label}
-                            onClick={() => onChange('darkMode', id)}
-                            style={{
-                              background:
-                                settings.darkMode === id ? 'var(--surface3)' : 'transparent',
-                              border: 'none',
-                              borderRadius: 6,
-                              padding: '5px 14px',
-                              color:
-                                settings.darkMode === id ? 'var(--text)' : 'var(--text3)',
-                              fontSize: 12,
-                              fontWeight: settings.darkMode === id ? 500 : 400,
-                              cursor: 'pointer',
-                              transition: 'all 0.15s',
-                              fontFamily: 'DM Sans,sans-serif',
-                            }}
-                          >
-                            {label}
-                          </button>
-                        ))}
+                  if (field.type === 'number') {
+                    return (
+                      <div key={key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
+                        <input
+                          type="number"
+                          value={settings[key] as number}
+                          onChange={(e) => onChange(key, Number(e.target.value))}
+                          style={INPUT_STYLE}
+                          min={field.min}
+                          max={field.max}
+                          step={field.step}
+                        />
                       </div>
-                    )}
-                  </div>
-                ))}
+                    );
+                  }
+
+                  if (field.type === 'select') {
+                    return (
+                      <div key={key}>
+                        <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 5 }}>
+                          {field.label}
+                        </div>
+                        <select
+                          value={settings[key] as string}
+                          onChange={(e) => onChange(key, e.target.value)}
+                          style={INPUT_STYLE}
+                        >
+                          {field.options?.map((o) => (
+                            <option key={o}>{o}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })}
               </div>
             </div>
           ))}

@@ -1,7 +1,3 @@
-interface WaveformProps {
-  active: boolean;
-}
-
 export default function Waveform({ active }: WaveformProps) {
   return (
     <div
