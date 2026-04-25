@@ -1,0 +1,39 @@
+# Build context is the repo root (see .github/workflows/deploy.yml).
+# Keep the context tight so docker build is fast and doesn't ship secrets.
+
+# Frontend — never needed by the backend image.
+frontend/
+
+# Infra & CI — never needed at runtime.
+infra/
+.github/
+
+# Per-language caches and venvs.
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+
+# Secrets and local artifacts.
+**/.env
+**/.env.*
+!**/.env.example
+**/token.json
+**/sessions.db*
+**/chroma/
+
+# Tests aren't run inside the image.
+backend/tests/
+
+# Docs and dev-only files.
+*.md
+!README.md
+demo-script.md
+DEPLOY.md
+
+# Git internals.
+.git/
+.gitignore

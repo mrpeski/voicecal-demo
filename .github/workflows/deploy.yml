@@ -19,9 +19,6 @@ jobs:
   # ─── Backend: build image → push to ECR → point Lambda at new image ──────
   backend:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -33,12 +30,16 @@ jobs:
       - uses: aws-actions/amazon-ecr-login@v2
         id: ecr
 
+      # Build context is the repo root so the Dockerfile can COPY both
+      # backend/src and eval/golden.jsonl in one image. Dockerfile path is
+      # explicit because the context isn't its directory.
       - name: Build and push image
         env:
           IMAGE: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
           SHA:   ${{ github.sha }}
         run: |
           docker build --platform linux/amd64 \
+            -f backend/Dockerfile \
             -t $IMAGE:latest \
             -t $IMAGE:$SHA \
             .

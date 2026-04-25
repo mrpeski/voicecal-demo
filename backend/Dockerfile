@@ -28,14 +28,21 @@ ENV PORT=8000 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install deps
+# Build context is the REPO ROOT (set in .github/workflows/deploy.yml so
+# we can pull in the eval/ directory too). All COPY paths are relative to
+# the repo root.
 WORKDIR /var/task
-COPY requirements.txt ./
+COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # App code — matches your layout: src/voicecal/app.py exposes `app`
-COPY src ./src
+COPY backend/src ./src
 ENV PYTHONPATH=/var/task/src
+
+# Golden-set eval scenarios. eval.py looks here first (via VOICECAL_EVAL_PATH)
+# before falling back to the repo-root path used in local dev.
+COPY eval/golden.jsonl /var/task/eval/golden.jsonl
+ENV VOICECAL_EVAL_PATH=/var/task/eval/golden.jsonl
 
 # The Lambda base image normally expects a handler; Web Adapter overrides that
 # by making the container's entrypoint `uvicorn`. We bypass the default CMD.

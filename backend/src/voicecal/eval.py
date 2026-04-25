@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -25,7 +26,20 @@ from voicecal.agent import ToolCallEvent, run_agent
 from voicecal.settings import settings
 from voicecal.tools import _events  # in-memory mock store
 
-GOLDEN_PATH = Path(__file__).resolve().parents[3] / "eval" / "golden.jsonl"
+
+def _resolve_golden_path() -> Path:
+    """Find golden.jsonl across local dev and Lambda image layouts.
+
+    Lambda image: VOICECAL_EVAL_PATH=/var/task/eval/golden.jsonl (set in
+    Dockerfile). Local dev: <repo>/eval/golden.jsonl, three parents up
+    from this file.
+    """
+    if env_path := os.environ.get("VOICECAL_EVAL_PATH"):
+        return Path(env_path)
+    return Path(__file__).resolve().parents[3] / "eval" / "golden.jsonl"
+
+
+GOLDEN_PATH = _resolve_golden_path()
 
 EvalStatus = Literal["running", "pass", "fail", "error"]
 
