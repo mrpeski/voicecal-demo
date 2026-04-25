@@ -37,9 +37,7 @@ jobs:
     env:
       TF_IN_AUTOMATION: "true"
       TF_INPUT: "0"
-      # Per-secret TF_VAR_* would need code changes (we use a single
-      # map(string)). Build the map JSON inline below instead.
-      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_VAR_aws_region:        ${{ vars.AWS_REGION }}
       TF_VAR_cors_allow_origin: ${{ vars.CORS_ALLOW_ORIGIN || '*' }}
     steps:
       - name: Guard destroy
@@ -59,7 +57,11 @@ jobs:
         with:
           terraform_version: 1.10.0
 
-      - name: Build secret_env_vars JSON
+      # Write secrets to a tfvars.json file. Same file is used by plan AND
+      # apply, so Terraform sees identical inputs and won't complain. The
+      # file is auto-loaded thanks to the .auto.tfvars.json suffix, and is
+      # cleaned up at the end of the job (runner is ephemeral anyway).
+      - name: Materialize secret_env_vars tfvars
         env:
           OPENAI_API_KEY:       ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
@@ -67,25 +69,24 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
         run: |
-          # Emit a single JSON map for TF_VAR_secret_env_vars. jq -n keeps the
-          # values in env (never echoed) and writes to $GITHUB_ENV with EOF
-          # masking via "add-mask" on each individual value.
           for v in OPENAI_API_KEY ANTHROPIC_API_KEY GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REFRESH_TOKEN; do
             echo "::add-mask::${!v}"
           done
-          json=$(jq -n \
-            --arg openai "$OPENAI_API_KEY" \
+          jq -n \
+            --arg openai    "$OPENAI_API_KEY" \
             --arg anthropic "$ANTHROPIC_API_KEY" \
-            --arg gid "$GOOGLE_CLIENT_ID" \
-            --arg gsec "$GOOGLE_CLIENT_SECRET" \
-            --arg grt "$GOOGLE_REFRESH_TOKEN" \
-            '{OPENAI_API_KEY:$openai, ANTHROPIC_API_KEY:$anthropic, GOOGLE_CLIENT_ID:$gid, GOOGLE_CLIENT_SECRET:$gsec, GOOGLE_REFRESH_TOKEN:$grt}')
-          # Multi-line env var assignment.
-          {
-            echo "TF_VAR_secret_env_vars<<EOF_TF"
-            echo "$json"
-            echo "EOF_TF"
-          } >> "$GITHUB_ENV"
+            --arg gid       "$GOOGLE_CLIENT_ID" \
+            --arg gsec      "$GOOGLE_CLIENT_SECRET" \
+            --arg grt       "$GOOGLE_REFRESH_TOKEN" \
+            '{secret_env_vars: {
+                OPENAI_API_KEY: $openai,
+                ANTHROPIC_API_KEY: $anthropic,
+                GOOGLE_CLIENT_ID: $gid,
+                GOOGLE_CLIENT_SECRET: $gsec,
+                GOOGLE_REFRESH_TOKEN: $grt
+              }}' > secrets.auto.tfvars.json
+          # Don't echo the file contents.
+          echo "Wrote $(wc -c < secrets.auto.tfvars.json) bytes to secrets.auto.tfvars.json"
 
       - name: Terraform init
         run: |
@@ -108,3 +109,7 @@ jobs:
       - name: Show outputs
         if: github.event.inputs.action == 'apply'
         run: terraform output
+
+      - name: Clean up secrets file
+        if: always()
+        run: rm -f secrets.auto.tfvars.json
