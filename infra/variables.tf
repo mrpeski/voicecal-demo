@@ -25,9 +25,20 @@ variable "env_vars" {
   default = { LOG_LEVEL = "info" }
 }
 
-# Secrets live in terraform.tfvars (gitignored). Values end up in state, so keep
-# state local or in a private encrypted backend. For stronger isolation move to
-# Secrets Manager later.
+# Secrets are passed via TF_VAR_secret_env_vars (set in CI from GitHub
+# secrets, or in a local terraform.tfvars). They flow into the Lambda's
+# `environment.variables`, which means they DO end up in state — protect
+# state accordingly (S3 bucket has encryption + public-access blocked).
+#
+# Note: cannot mark this `ephemeral`, because Lambda's environment.variables
+# is a non-ephemeral attribute. If you need stricter isolation, store the
+# values in AWS Secrets Manager and have Lambda read them at runtime.
+#
+# Operational consequence: do NOT run `terraform plan -out=plan.tfplan`
+# followed by `terraform apply plan.tfplan` with these values supplied via
+# different sources between the two commands. Either use the same source
+# (env var or tfvars) for both, or skip the saved-plan workflow and run
+# `terraform apply` directly. The CI workflow does the latter.
 variable "secret_env_vars" {
   type      = map(string)
   sensitive = true
