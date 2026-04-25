@@ -6,10 +6,14 @@ export const COLORS = [
   'oklch(72% 0.15 60)',
   'oklch(68% 0.17 200)',
   'oklch(65% 0.18 20)',
-];
+] as const;
+
+export type Color = (typeof COLORS)[number];
 
 // ── Day labels (Sun-first for JS getDay()) ───────────────────────────────
-export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+
+export type Day = (typeof DAYS)[number];
 
 // ── Tweak defaults (edit-mode template) ──────────────────────────────────
 export const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/ {
@@ -22,6 +26,16 @@ export const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/ {
   darkMode: true,
 } /*EDITMODE-END*/;
 
+export interface TweakDefaults {
+  accentHue: number;
+  userName: string;
+  timezone: string;
+  workStart: string;
+  workEnd: string;
+  defaultDuration: number;
+  darkMode: boolean;
+}
+
 // ── Helper for initial event seed dates ──────────────────────────────────
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const tomorrowStr = () => {
@@ -29,14 +43,24 @@ const tomorrowStr = () => {
   d.setDate(d.getDate() + 1);
   return d.toISOString().slice(0, 10);
 };
-const offsetStr = (n) => {
+const offsetStr = (n: number) => {
   const d = new Date();
   d.setDate(d.getDate() + n);
   return d.toISOString().slice(0, 10);
 };
 
 // ── Seed events shown on first load ──────────────────────────────────────
-export const INITIAL_EVENTS = [
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  description: string;
+  colorIndex: number;
+}
+
+export const INITIAL_EVENTS: CalendarEvent[] = [
   {
     id: 'e1',
     title: 'Team Standup',
@@ -76,7 +100,17 @@ export const INITIAL_EVENTS = [
 ];
 
 // ── Preset prompt groups for Plan view ───────────────────────────────────
-export const PRESET_GROUPS = [
+export interface PromptItem {
+  label: string;
+  prompt: string;
+}
+
+export interface PromptGroup {
+  label: string;
+  items: PromptItem[];
+}
+
+export const PRESET_GROUPS: PromptGroup[] = [
   {
     label: 'Work',
     items: [
@@ -130,7 +164,12 @@ export const PRESET_GROUPS = [
 ];
 
 // ── Smart prompts shown prominently in Plan view ─────────────────────────
-export const SMART_PROMPTS = [
+export interface SmartPrompt {
+  label: string;
+  prompt: string;
+}
+
+export const SMART_PROMPTS: SmartPrompt[] = [
   {
     label: 'Plan my evening',
     prompt:
@@ -154,7 +193,7 @@ export const SMART_PROMPTS = [
 ];
 
 // ── Discovery prompts shown in Insights view ─────────────────────────────
-export const DISCOVERY_PROMPTS = [
+export const DISCOVERY_PROMPTS: SmartPrompt[] = [
   {
     label: 'Best focus time?',
     prompt:

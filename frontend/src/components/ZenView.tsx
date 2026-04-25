@@ -4,6 +4,34 @@ import { formatDate, formatTime } from '../utils';
 import ResultCard from './ResultCard';
 import Waveform from './Waveform';
 
+// Types
+interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  colorIndex: number;
+  attendees?: string[];
+  description?: string;
+}
+
+interface Tweaks {
+  userName: string;
+  [key: string]: string | number | boolean;
+}
+
+interface ZenViewProps {
+  tweaks: Tweaks;
+  result: { state: string; text: string; events?: CalendarEvent[] } | null;
+  onDismissResult: () => void;
+  listening: boolean;
+  onMicClick: () => void;
+  onSend: (message: string) => void;
+  upcomingEvents: CalendarEvent[];
+  onDeleteEvent: (eventId: string) => void;
+}
+
 export default function ZenView({
   tweaks,
   result,
@@ -13,7 +41,7 @@ export default function ZenView({
   onSend,
   upcomingEvents,
   onDeleteEvent,
-}) {
+}: ZenViewProps) {
   const [textMode, setTextMode] = useState(false);
   const [input, setInput] = useState('');
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);

@@ -1,4 +1,37 @@
-import React from 'react';
+interface Settings {
+  userName: string;
+  timezone: string;
+  workStart: string;
+  workEnd: string;
+  defaultDuration: number;
+  accentHue: number;
+  darkMode: boolean;
+}
+
+type FieldType = 'text' | 'number' | 'select' | 'workrange' | 'hue' | 'theme';
+
+interface Field {
+  label: string;
+  key: keyof Settings;
+  type: FieldType;
+  placeholder?: string;
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+}
+
+interface Section {
+  section: string;
+  fields: Field[];
+}
+
+interface SettingsPanelProps {
+  open: boolean;
+  onClose: () => void;
+  settings: Settings;
+  onChange: (key: keyof Settings, value: string | number | boolean) => void;
+}
 
 const INPUT_STYLE = {
   width: '100%',
@@ -12,7 +45,7 @@ const INPUT_STYLE = {
   fontFamily: 'DM Sans,sans-serif',
 };
 
-const SECTIONS = [
+const SECTIONS: Section[] = [
   {
     section: 'Profile',
     fields: [{ label: 'Your name', key: 'userName', type: 'text', placeholder: 'e.g. Alex' }],
@@ -25,6 +58,7 @@ const SECTIONS = [
         key: 'timezone',
         type: 'select',
         options: [
+          'Africa/Lagos',
           'America/New_York',
           'America/Chicago',
           'America/Denver',
@@ -55,7 +89,7 @@ const SECTIONS = [
   },
 ];
 
-export default function SettingsPanel({ open, onClose, settings, onChange }) {
+export default function SettingsPanel({ open, onClose, settings, onChange }: SettingsPanelProps) {
   return (
     <>
       {open && (
@@ -169,7 +203,7 @@ export default function SettingsPanel({ open, onClose, settings, onChange }) {
                         onChange={(e) => onChange(f.key, e.target.value)}
                         style={INPUT_STYLE}
                       >
-                        {f.options.map((o) => (
+                        {f.options?.map((o) => (
                           <option key={o}>{o}</option>
                         ))}
                       </select>

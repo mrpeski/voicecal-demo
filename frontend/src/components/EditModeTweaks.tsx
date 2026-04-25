@@ -1,7 +1,19 @@
-import React from 'react';
-import ModeToggle from './ModeToggle';
+import ModeToggle, { type Mode } from './ModeToggle';
 
-export default function EditModeTweaks({ tweaks, updateTweak, mode, setMode }) {
+export interface Tweaks {
+  userName: string;
+  accentHue: number;
+  darkMode: boolean;
+}
+
+interface EditModeTweaksProps {
+  tweaks: Tweaks;
+  updateTweak: <K extends keyof Tweaks>(key: K, value: Tweaks[K]) => void;
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+}
+
+export default function EditModeTweaks({ tweaks, updateTweak, mode, setMode }: EditModeTweaksProps) {
   return (
     <div
       style={{

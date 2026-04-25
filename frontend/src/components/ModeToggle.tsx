@@ -1,12 +1,17 @@
-import React from 'react';
+type Mode = 'zen' | 'plan' | 'insights';
 
-const MODES = [
+interface ModeToggleProps {
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+}
+
+const MODES: { id: Mode; label: string }[] = [
   { id: 'zen', label: 'Zen' },
   { id: 'plan', label: 'Plan' },
   { id: 'insights', label: 'Insights' },
 ];
 
-export default function ModeToggle({ mode, setMode }) {
+export default function ModeToggle({ mode, setMode }: ModeToggleProps) {
   return (
     <div
       style={{

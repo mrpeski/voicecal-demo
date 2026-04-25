@@ -1,6 +1,8 @@
-import React from 'react';
+interface WaveformProps {
+  active: boolean;
+}
 
-export default function Waveform({ active }) {
+export default function Waveform({ active }: WaveformProps) {
   return (
     <div
       style={{

@@ -1,6 +1,7 @@
 // Applies theme by setting CSS custom properties on :root.
 // Handles both dark and light variants; the light palette is tinted by accent hue.
-export function applyTheme(dark, hue) {
+
+export function applyTheme(dark: boolean, hue: number): void {
   const el = document.documentElement;
 
   // Accent (always applied)

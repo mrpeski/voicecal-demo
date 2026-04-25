@@ -1,9 +1,33 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { DAYS, DISCOVERY_PROMPTS } from '../constants';
 import { todayStr, offsetStr, timeToMins, mdToHtml } from '../utils';
 
-export default function InsightsView({ events, tweaks }) {
-  const [aiResult, setAiResult] = useState(null);
+interface CalendarEvent {
+  title: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+interface Tweaks {
+  userName: string;
+  workStart: string;
+  workEnd: string;
+}
+
+interface StatCard {
+  label: string;
+  value: string | number;
+  sub: string;
+}
+
+interface InsightsViewProps {
+  events: CalendarEvent[];
+  tweaks: Tweaks;
+}
+
+export default function InsightsView({ events, tweaks }: InsightsViewProps) {
+  const [aiResult, setAiResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const today = new Date();
@@ -27,14 +51,14 @@ export default function InsightsView({ events, tweaks }) {
   // Free hours today (within work hours)
   const todayEvs = events
     .filter((e) => e.date === todayStr() && e.startTime && e.endTime)
-    .sort((a, b) => timeToMins(a.startTime) - timeToMins(b.startTime));
+    .sort((a, b) => timeToMins(a.startTime!) - timeToMins(b.startTime!));
   const workStart = timeToMins(tweaks.workStart);
   const workEnd = timeToMins(tweaks.workEnd);
   let freeMin = 0;
   let cursor = workStart;
   for (const ev of todayEvs) {
-    if (timeToMins(ev.startTime) > cursor) freeMin += timeToMins(ev.startTime) - cursor;
-    cursor = Math.max(cursor, timeToMins(ev.endTime));
+    if (timeToMins(ev.startTime!) > cursor) freeMin += timeToMins(ev.startTime!) - cursor;
+    cursor = Math.max(cursor, timeToMins(ev.endTime!));
   }
   if (cursor < workEnd) freeMin += workEnd - cursor;
   const freeHrs = (freeMin / 60).toFixed(1);
@@ -75,7 +99,7 @@ Give 3 short, specific, actionable insights about this person's schedule pattern
     setLoading(false);
   }
 
-  async function runDiscoveryPrompt(d) {
+  async function runDiscoveryPrompt(d: { prompt: string; label: string }) {
     const dateStr = new Date().toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -96,7 +120,7 @@ Give 3 short, specific, actionable insights about this person's schedule pattern
     setLoading(false);
   }
 
-  const statCards = [
+  const statCards: StatCard[] = [
     { label: 'Free today', value: `${freeHrs}h`, sub: `${busyHrs}h busy` },
     { label: 'This week', value: thisWeekEvs.length, sub: 'events scheduled' },
     { label: 'Busiest day', value: DAYS[busiestDow], sub: `${byDow[busiestDow]} events avg` },

@@ -1,7 +1,36 @@
-import React, { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, RefObject } from 'react';
 import { COLORS, PRESET_GROUPS, SMART_PROMPTS } from '../constants';
 import { todayStr, timeToMins, formatTime } from '../utils';
 import ResultCard from './ResultCard';
+
+type Event = {
+  id: string;
+  date: string;
+  title: string;
+  startTime?: string;
+  endTime?: string;
+  colorIndex: number;
+};
+
+type Result = {
+  state: 'done' | string;
+  text: string;
+};
+
+type Tweaks = {
+  workStart: string; // e.g. "09:00"
+  workEnd: string;   // e.g. "17:00"
+  userName: string;
+};
+
+type PlanViewProps = {
+  events: Event[];
+  onQuery: (prompt: string, label: string) => void;
+  result?: Result;
+  onDismissResult: () => void;
+  onDeleteEvent: (eventId: string) => void;
+  tweaks: Tweaks;
+};
 
 export default function PlanView({
   events,
@@ -10,10 +39,10 @@ export default function PlanView({
   onDismissResult,
   onDeleteEvent,
   tweaks,
-}) {
+}: PlanViewProps) {
   const [activeGroup, setActiveGroup] = useState(0);
   const [customInput, setCustomInput] = useState('');
-  const customRef = useRef(null);
+  const customRef: RefObject<HTMLInputElement|null> = useRef(null);
 
   // Today's events sorted by start time
   const todayEvs = useMemo(
