@@ -1,5 +1,6 @@
 import { COLORS } from '../constants';
-import { formatDate, formatTime, mdToHtml } from '../utils';
+import { formatDate, formatTime } from '../utils';
+import ResultMarkdown from './ResultMarkdown';
 
 /**
  * Renders the different UI states of an agent result:
@@ -83,10 +84,7 @@ export default function ResultCard({ result, onDismiss }: ResultCardProps) {
           >
             {result.toolCalls && <ToolCallList calls={result.toolCalls} />}
             {result.text ? (
-              <div
-                style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65 }}
-                dangerouslySetInnerHTML={{ __html: mdToHtml(result.text) }}
-              />
+              <ResultMarkdown text={result.text} />
             ) : (
               <div
                 style={{
@@ -228,12 +226,7 @@ export default function ResultCard({ result, onDismiss }: ResultCardProps) {
             </div>
           )}
           {result.toolCalls && <ToolCallList calls={result.toolCalls} />}
-          {result.text && (
-            <div
-              style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.65 }}
-              dangerouslySetInnerHTML={{ __html: mdToHtml(result.text) }}
-            />
-          )}
+          {result.text && <ResultMarkdown text={result.text} />}
           {result.newEvents &&
             result.newEvents.map((ev, i) => (
               <div

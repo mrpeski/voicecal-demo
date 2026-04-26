@@ -1,4 +1,8 @@
-// ── Color palette for event dots ─────────────────────────────────────────
+import { MONDAY_WORKFLOW, type MondayWorkflowId } from './mondayWorkflow';
+
+export { MONDAY_WORKFLOW, type MondayWorkflowId } from './mondayWorkflow';
+
+// ── Color palette for event dots ─────────────────────────────
 export const COLORS = [
   'oklch(68% 0.16 255)',
   'oklch(68% 0.14 155)',
@@ -102,7 +106,10 @@ export const INITIAL_EVENTS: CalendarEvent[] = [
 // ── Preset prompt groups for Plan view ───────────────────────────────────
 export interface PromptItem {
   label: string;
+  /** Empty when `workflow` opens the Monday guided stepper instead of sending text. */
   prompt: string;
+  /** When set, Plan view opens a guided stepper; prompt is not sent. */
+  workflow?: MondayWorkflowId;
 }
 
 export interface PromptGroup {
@@ -111,6 +118,12 @@ export interface PromptGroup {
 }
 
 export const PRESET_GROUPS: PromptGroup[] = [
+  {
+    label: 'This week',
+    items: [
+      { label: 'Monday 1h planning', prompt: '', workflow: MONDAY_WORKFLOW },
+    ],
+  },
   {
     label: 'Work',
     items: [
@@ -167,9 +180,15 @@ export const PRESET_GROUPS: PromptGroup[] = [
 export interface SmartPrompt {
   label: string;
   prompt: string;
+  workflow?: MondayWorkflowId;
 }
 
 export const SMART_PROMPTS: SmartPrompt[] = [
+  {
+    label: 'Monday 1h planning',
+    prompt: '',
+    workflow: MONDAY_WORKFLOW,
+  },
   {
     label: 'Plan my evening',
     prompt:

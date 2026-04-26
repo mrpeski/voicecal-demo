@@ -80,13 +80,7 @@ export function cleanText(t: string): string {
     .trim();
 }
 
-// ── Lightweight markdown helpers ─────────────────────────────────────────
-export function mdToHtml(t: string): string {
-  return t
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>');
-}
-
+// ── Text helpers (Markdown is rendered in ResultCard via `ResultMarkdown`) ─
 export function stripMd(t: string): string {
   return t
     .replace(/<[^>]+>/g, '')

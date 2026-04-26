@@ -1,7 +1,8 @@
 import { useState, useRef, useMemo } from 'react';
-import { COLORS, PRESET_GROUPS, SMART_PROMPTS } from '../constants';
+import { COLORS, MONDAY_WORKFLOW, PRESET_GROUPS, SMART_PROMPTS } from '../constants';
 import { todayStr, timeToMins, formatTime } from '../utils';
 import ResultCard from './ResultCard';
+import MondayPlanningStepper from './MondayPlanningStepper';
 
 export default function PlanView({
   events,
@@ -14,6 +15,8 @@ export default function PlanView({
   const [activeGroup, setActiveGroup] = useState(0);
   const [customInput, setCustomInput] = useState('');
   const customRef = useRef<HTMLInputElement | null>(null);
+  const [mondayWorkflowOpen, setMondayWorkflowOpen] = useState(false);
+  const agentBusy = result?.state === 'thinking';
 
   // Today's events sorted by start time
   const todayEvs = useMemo(
@@ -87,6 +90,16 @@ export default function PlanView({
             )}
           </div>
         </div>
+
+        {mondayWorkflowOpen && (
+          <MondayPlanningStepper
+            open={mondayWorkflowOpen}
+            onClose={() => setMondayWorkflowOpen(false)}
+            onSend={onQuery}
+            agentBusy={agentBusy}
+            defaultEventTime={tweaks.workStart}
+          />
+        )}
 
         {/* Result card */}
         {result && (
@@ -197,7 +210,13 @@ export default function PlanView({
             {SMART_PROMPTS.map((p, i) => (
               <button
                 key={i}
-                onClick={() => onQuery(p.prompt, p.label)}
+                onClick={() => {
+                  if (p.workflow === MONDAY_WORKFLOW) {
+                    setMondayWorkflowOpen(true);
+                    return;
+                  }
+                  onQuery(p.prompt, p.label);
+                }}
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
@@ -268,7 +287,13 @@ export default function PlanView({
             {PRESET_GROUPS[activeGroup].items.map((item, i) => (
               <button
                 key={i}
-                onClick={() => onQuery(item.prompt, item.label)}
+                onClick={() => {
+                  if (item.workflow === MONDAY_WORKFLOW) {
+                    setMondayWorkflowOpen(true);
+                    return;
+                  }
+                  onQuery(item.prompt, item.label);
+                }}
                 style={{
                   background: 'var(--surface)',
                   border: '1px solid var(--border)',
