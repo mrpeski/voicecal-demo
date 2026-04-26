@@ -13,6 +13,7 @@ export default function Header({
 }: HeaderProps) {
   return (
     <div
+      className="app-header"
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -20,17 +21,38 @@ export default function Header({
         padding: '0 14px',
         height: 52,
         flexShrink: 0,
+        minWidth: 0,
         borderBottom: '1px solid var(--border)',
         background: 'var(--surface)',
+        gap: 8,
       }}
     >
-      <ModeToggle mode={mode} setMode={setMode} />
+      <div style={{ flexShrink: 0 }}>
+        <ModeToggle mode={mode} setMode={setMode} />
+      </div>
 
-      <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em' }}>VoiceCal</div>
+      <div
+        style={{
+          fontSize: 17,
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        VoiceCal
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      <div
+        className="header-right-tools"
+        style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0, minWidth: 0 }}
+      >
+        <div className="header-actions-desktop" style={{ alignItems: 'center' }}>
         {/* Dark / light toggle */}
         <button
+          type="button"
           onClick={onToggleDarkMode}
           title={darkMode ? 'Switch to light' : 'Switch to dark'}
           style={{
@@ -71,6 +93,7 @@ export default function Header({
 
         {/* Speaker / stop speaking */}
         <button
+          type="button"
           onClick={onStopSpeaking}
           title={speaking ? 'Stop speaking' : 'Voice on'}
           style={{
@@ -128,11 +151,14 @@ export default function Header({
             </svg>
           )}
         </button>
+        </div>
 
         {userButton}
 
+        <div className="header-actions-desktop" style={{ alignItems: 'center' }}>
         {/* Evals */}
         <button
+          type="button"
           onClick={onOpenEvals}
           title="Run evals"
           style={{
@@ -154,10 +180,11 @@ export default function Header({
         >
           ✓✗
         </button>
+        </div>
 
-        {/* Settings */}
         <button
           onClick={onOpenSettings}
+          type="button"
           style={{
             background: 'none',
             border: 'none',
@@ -169,6 +196,7 @@ export default function Header({
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: 8,
+            flexShrink: 0,
           }}
         >
           <svg width="17" height="17" viewBox="0 0 17 17" fill="none">

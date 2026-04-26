@@ -51,6 +51,28 @@ body {
   border-radius: 4px;
 }
 
+/* Header: on narrow viewports, only settings + user profile stay visible. */
+.header-actions-desktop {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.header-right-tools {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  .header-actions-desktop {
+    display: none !important;
+  }
+}
+
 /* ─── Focus styles for form controls ────────────────────────────────────── */
 input:focus,
 select:focus {
