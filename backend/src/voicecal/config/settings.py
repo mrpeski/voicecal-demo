@@ -109,5 +109,14 @@ class Settings(BaseSettings):
     compaction_keep_last_items: int = 8
     compaction_summary_model: str = "gpt-4o-mini"
 
+    # --- Clerk (optional). When True, all /api/* except /health require
+    # Authorization: Bearer <Clerk session JWT>. Get issuer + JWKS from the Clerk dashboard.
+    # Leave disabled for local dev/tests without a Clerk app.
+    clerk_enabled: bool = False
+    # Example: https://my-app.clerk.accounts.com (JWT `iss` claim, no trailing path)
+    clerk_issuer: str = ""
+    # Example: https://my-app.clerk.accounts.com/.well-known/jwks.json
+    clerk_jwks_url: str = ""
+
 
 settings = Settings()

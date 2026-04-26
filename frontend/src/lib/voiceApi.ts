@@ -1,6 +1,7 @@
 import type { VoiceResult } from "./types";
 import { apiUrl } from "./apiBase";
 import { toApiError } from "./apiError";
+import { withAuthHeaders } from "./authHeaders";
 
 interface UploadOptions {
   endpoint?: string;
@@ -8,6 +9,7 @@ interface UploadOptions {
   fieldName?: string;
   signal?: AbortSignal;
   conversationId?: string | null;
+  getToken?: () => Promise<string | null>;
 }
 
 /**
@@ -22,6 +24,7 @@ export async function uploadVoice(
     fieldName = "audio",
     signal,
     conversationId,
+    getToken,
   }: UploadOptions = {},
 ): Promise<VoiceResult> {
   const form = new FormData();
@@ -30,7 +33,12 @@ export async function uploadVoice(
     form.append("conversation_id", conversationId);
   }
 
-  const res = await fetch(apiUrl(endpoint), { method: "POST", body: form, signal });
+  const res = await fetch(apiUrl(endpoint), {
+    method: "POST",
+    body: form,
+    signal,
+    headers: await withAuthHeaders(getToken),
+  });
   if (!res.ok) {
     throw await toApiError(res, "Voice upload failed");
   }

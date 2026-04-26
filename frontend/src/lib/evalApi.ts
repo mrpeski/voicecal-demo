@@ -1,5 +1,6 @@
 import { apiUrl } from "./apiBase";
 import { toApiError } from "./apiError";
+import { withAuthHeaders } from "./authHeaders";
 
 export type EvalStatus = "running" | "pass" | "fail" | "error";
 
@@ -23,6 +24,7 @@ interface RunEvalsOptions {
   endpoint?: string;
   signal?: AbortSignal;
   onEvent: (event: EvalEvent) => void;
+  getToken?: () => Promise<string | null>;
 }
 
 /** POST /api/eval and stream EvalEvents until [DONE]. */
@@ -30,10 +32,11 @@ export async function runEvals({
   endpoint = "/api/eval",
   signal,
   onEvent,
+  getToken,
 }: RunEvalsOptions): Promise<void> {
   const res = await fetch(apiUrl(endpoint), {
     method: "POST",
-    headers: { Accept: "text/event-stream" },
+    headers: await withAuthHeaders(getToken, { Accept: "text/event-stream" }),
     signal,
   });
 

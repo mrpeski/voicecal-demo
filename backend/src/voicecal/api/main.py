@@ -5,7 +5,7 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import structlog
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, ConfigDict
@@ -13,6 +13,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from voicecal.agent import get_session, run_agent
 from voicecal.agent.tools import fetch_events
+from voicecal.api.dependencies import require_clerk_user_id
 from voicecal.config.settings import settings
 from voicecal.core.errors import AppError, PayloadTooLargeError
 from voicecal.eval import stream_evals
@@ -108,6 +109,7 @@ async def health() -> dict[str, str]:
 async def get_events(
     time_min: str | None = None,
     time_max: str | None = None,
+    _user_id: str = Depends(require_clerk_user_id),
 ) -> dict:
     """Return calendar events in a time window (defaults: 7 days ago → 30 days ahead)."""
     tz = ZoneInfo(settings.user_timezone)
@@ -125,7 +127,11 @@ class ChatRequest(BaseModel):
 
 
 @app.post("/api/chat")
-async def chat(request: Request, req: ChatRequest) -> StreamingResponse:
+async def chat(
+    request: Request,
+    req: ChatRequest,
+    _user_id: str = Depends(require_clerk_user_id),
+) -> StreamingResponse:
     await enforce_request_rate_limit(request)
     assert_user_text_allows(req.message, label="message")
     assert_voicecal_intended_use(req.message)
@@ -145,7 +151,10 @@ async def chat(request: Request, req: ChatRequest) -> StreamingResponse:
 
 
 @app.post("/api/eval")
-async def eval_endpoint(request: Request) -> StreamingResponse:
+async def eval_endpoint(
+    request: Request,
+    _user_id: str = Depends(require_clerk_user_id),
+) -> StreamingResponse:
     """Stream the golden-set eval results, one SSE event per scenario state change."""
     await enforce_request_rate_limit(request)
 
@@ -158,7 +167,10 @@ async def eval_endpoint(request: Request) -> StreamingResponse:
 
 
 @app.post("/api/chat/{conversation_id}/clear")
-async def clear_chat(conversation_id: str) -> dict:
+async def clear_chat(
+    conversation_id: str,
+    _user_id: str = Depends(require_clerk_user_id),
+) -> dict:
     session = get_session(conversation_id)
     await session.clear_session()
     return {"ok": True}
@@ -169,6 +181,7 @@ async def voice_endpoint(
     request: Request,
     audio: UploadFile = File(...),
     conversation_id: str | None = Form(default=None),
+    _user_id: str = Depends(require_clerk_user_id),
 ):
     await enforce_request_rate_limit(request)
     # 1. Validate input
@@ -233,13 +246,16 @@ async def voice_endpoint(
 
 
 @app.post("/api/_debug/reindex")
-async def reindex(force: bool = True):
+async def reindex(
+    force: bool = True,
+    _user_id: str = Depends(require_clerk_user_id),
+):
     n = await build_index(force=force)
     return {"indexed": n}
 
 
 @app.post("/api/_debug/reset-rag")
-async def reset_rag():
+async def reset_rag(_user_id: str = Depends(require_clerk_user_id)):
     from voicecal.rag import service as rag_svc
 
     rag_svc._chroma.delete_collection("calendar_history")

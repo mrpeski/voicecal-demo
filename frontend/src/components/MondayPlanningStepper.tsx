@@ -119,7 +119,8 @@ export default function MondayPlanningStepper({
         }}
       >
         Each step sends a short, calendar-tied message so scheduling guardrails
-        pass. You can read the response in the card above, then move on.
+        pass. After you run a step, the answer shows in the result card below
+        this panel. Read it, then use “Next step” (or “Back”).
       </p>
 
       {/* Step 1 */}
@@ -159,8 +160,8 @@ export default function MondayPlanningStepper({
 
       {step === 2 && (
         <StepBlock
-          title="Last week"
-          body="Ask VoiceCal to read your calendar for last week and reflect—what owned your time, how heavy it was, and gaps."
+          title="Last week · calendar read"
+          body="Tap the green “Run last week review” button once. The assistant fetches your Google Calendar for the last full week (Mon–Sun) and answers in the result card below with a short recap: what used your time, how busy the week was, and gaps. When you are done reading, use “Next step”."
         >
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'flex-end' }}>
             <GhostButton

@@ -149,6 +149,7 @@ declare global {
     onStopSpeaking: () => void;
     onOpenSettings: () => void;
     onOpenEvals: () => void;
+    userButton?: import('react').ReactNode;
   }
 
   // ===== ModeToggle =====

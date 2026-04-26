@@ -12,6 +12,7 @@ interface Options {
   autoplayResponse?: boolean;
   onResult?: (result: VoiceResult) => void;
   onError?: (err: unknown) => void;
+  getToken?: () => Promise<string | null>;
 }
 
 export interface UseVoiceInteraction {
@@ -35,6 +36,7 @@ export function useVoiceInteraction({
   autoplayResponse = true,
   onResult,
   onError,
+  getToken,
 }: Options = {}): UseVoiceInteraction {
   const [pending, setPending] = useState(false);
   const { recording, start, stop: stopRecording } = useMediaRecorder({ mimeType, onError });
@@ -48,7 +50,7 @@ export function useVoiceInteraction({
 
     setPending(true);
     try {
-      const data = await uploadVoice(blob, { endpoint, conversationId });
+      const data = await uploadVoice(blob, { endpoint, conversationId, getToken });
       setConversationId(data.conversation_id);
       if (autoplayResponse && data.audio_base64) {
         playBase64Audio(data.audio_base64);
@@ -59,7 +61,7 @@ export function useVoiceInteraction({
     } finally {
       setPending(false);
     }
-  }, [stopRecording, minBlobSize, endpoint, autoplayResponse, onResult, onError]);
+  }, [stopRecording, minBlobSize, endpoint, autoplayResponse, onResult, onError, getToken]);
 
   return { recording, pending, start, stop };
 }

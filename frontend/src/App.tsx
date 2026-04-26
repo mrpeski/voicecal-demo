@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { COLORS, INITIAL_EVENTS, TWEAK_DEFAULTS } from './constants';
 import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
@@ -15,8 +15,16 @@ import InsightsView from './components/InsightsView';
 import SettingsPanel from './components/SettingsPanel';
 import EditModeTweaks from './components/EditModeTweaks';
 import EvalPanel from './components/EvalPanel';
+import type { GetClerkToken } from './lib/authTypes';
 
-export default function App() {
+export type { GetClerkToken } from './lib/authTypes';
+
+export interface AppProps {
+  getToken?: GetClerkToken;
+  userButton?: ReactNode;
+}
+
+export default function App({ getToken, userButton }: AppProps = {}) {
   // ── Persisted state ─────────────────────────────────────────────────────
   const [tweaks, setTweaks] = usePersistentState<VoiceCalTweakSettings>('vc_tweaks3', TWEAK_DEFAULTS, {
     mergeDefaults: true,
@@ -43,7 +51,7 @@ export default function App() {
   // Boot fetch: pull events from the backend on mount and merge into local state.
   useEffect(() => {
     const ctrl = new AbortController();
-    fetchEvents(ctrl.signal)
+    fetchEvents(ctrl.signal, getToken)
       .then((backendEvents) => {
         const mapped = backendEvents
           .map((ev) => toolOutputToLocalEvent(JSON.stringify(ev)))
@@ -60,8 +68,7 @@ export default function App() {
         console.warn('boot fetch /api/events failed', err);
       });
     return () => ctrl.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [getToken]);
 
   // ── Edit-mode message bridge (parent page integration) ─────────────────
   useEffect(() => {
@@ -135,6 +142,7 @@ export default function App() {
   }
 
   const { recording: listening, start: startListening, stop: stopListening } = useVoiceInteraction({
+    getToken,
     onResult: handleVoiceResult,
     onError: (err) => {
       if ((err as { name?: string })?.name === 'AbortError') return;
@@ -207,6 +215,7 @@ export default function App() {
     setActiveResult({ state: 'thinking', transcript, text: '', toolCalls: [] });
     try {
       const result = await sendChat(trimmed, {
+        getToken,
         conversationId,
         onEvent: (ev) => {
           if (ev.type === 'token') {
@@ -392,6 +401,7 @@ export default function App() {
         onStopSpeaking={() => {}}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenEvals={() => setEvalOpen(true)}
+        userButton={userButton}
       />
 
       {mode === 'zen' && (
@@ -437,7 +447,11 @@ export default function App() {
         onChange={updateTweak}
       />
 
-      <EvalPanel open={evalOpen} onClose={() => setEvalOpen(false)} />
+      <EvalPanel
+        open={evalOpen}
+        onClose={() => setEvalOpen(false)}
+        getToken={getToken}
+      />
 
       {editMode && (
         <EditModeTweaks

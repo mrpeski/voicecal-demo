@@ -1,10 +1,12 @@
 import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '../lib/apiError';
 import { runEvals, type EvalResult, type EvalStatus } from '../lib/evalApi';
+import type { GetClerkToken } from '../lib/authTypes';
 
 interface EvalPanelProps {
   open: boolean;
   onClose: () => void;
+  getToken?: GetClerkToken;
 }
 
 const STATUS_META: Record<EvalStatus, { icon: string; color: string; label: string }> = {
@@ -14,7 +16,7 @@ const STATUS_META: Record<EvalStatus, { icon: string; color: string; label: stri
   error: { icon: '!', color: 'oklch(65% 0.18 60)', label: 'Error' },
 };
 
-export default function EvalPanel({ open, onClose }: EvalPanelProps) {
+export default function EvalPanel({ open, onClose, getToken }: EvalPanelProps) {
   const [results, setResults] = useState<EvalResult[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export default function EvalPanel({ open, onClose }: EvalPanelProps) {
 
     try {
       await runEvals({
+        getToken,
         signal: ctrl.signal,
         onEvent: (ev) => {
           setResults((prev) => {

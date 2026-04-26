@@ -1,15 +1,17 @@
 import type { StreamEvent, Message } from "./types";
 import { apiUrl } from "./apiBase";
 import { toApiError } from "./apiError";
+import { withAuthHeaders } from "./authHeaders";
 
 export async function* streamChat(
   text: string,
   history: Message[],
   conversationId: string | null,
+  getToken?: () => Promise<string | null>,
 ): AsyncGenerator<StreamEvent> {
   const res = await fetch(apiUrl("/api/chat"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await withAuthHeaders(getToken, { "Content-Type": "application/json" }),
     body: JSON.stringify({
       message: text,
       history,

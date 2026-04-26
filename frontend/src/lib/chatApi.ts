@@ -1,6 +1,7 @@
 import type { StreamEvent, ToolCallEvent } from "./types";
 import { apiUrl } from "./apiBase";
 import { toApiError } from "./apiError";
+import { withAuthHeaders } from "./authHeaders";
 
 export interface BackendEvent {
   id: string;
@@ -11,8 +12,14 @@ export interface BackendEvent {
   description?: string | null;
 }
 
-export async function fetchEvents(signal?: AbortSignal): Promise<BackendEvent[]> {
-  const res = await fetch(apiUrl("/api/events"), { signal });
+export async function fetchEvents(
+  signal?: AbortSignal,
+  getToken?: () => Promise<string | null>,
+): Promise<BackendEvent[]> {
+  const res = await fetch(apiUrl("/api/events"), {
+    signal,
+    headers: await withAuthHeaders(getToken),
+  });
   if (!res.ok) {
     throw await toApiError(res, "Fetch events failed");
   }
@@ -26,6 +33,7 @@ interface SendChatOptions {
   signal?: AbortSignal;
   onEvent?: (event: StreamEvent) => void;
   onToken?: (text: string) => void;
+  getToken?: () => Promise<string | null>;
 }
 
 export interface ChatResult {
@@ -46,14 +54,15 @@ export async function sendChat(
     signal,
     onEvent,
     onToken,
+    getToken,
   }: SendChatOptions = {},
 ): Promise<ChatResult> {
   const res = await fetch(apiUrl(endpoint), {
     method: "POST",
-    headers: {
+    headers: await withAuthHeaders(getToken, {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
-    },
+    }),
     body: JSON.stringify({
       message,
       conversation_id: conversationId ?? null,

@@ -9,6 +9,7 @@ export default function Header({
   onStopSpeaking,
   onOpenSettings,
   onOpenEvals,
+  userButton,
 }: HeaderProps) {
   return (
     <div
@@ -127,6 +128,8 @@ export default function Header({
             </svg>
           )}
         </button>
+
+        {userButton}
 
         {/* Evals */}
         <button

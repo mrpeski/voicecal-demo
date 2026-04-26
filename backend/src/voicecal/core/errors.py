@@ -48,3 +48,17 @@ class UsePolicyError(AppError):
 
     code = "use_policy"
     status_code = 422
+
+
+class UnauthorizedError(AppError):
+    """Missing or invalid session (e.g. Clerk JWT)."""
+
+    code = "unauthorized"
+    status_code = 401
+
+
+class ClerkConfigError(AppError):
+    """Clerk is enabled in settings but required env (JWKS / issuer) is missing."""
+
+    code = "clerk_misconfigured"
+    status_code = 503

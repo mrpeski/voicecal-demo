@@ -12,6 +12,8 @@ def _offline_test_settings() -> None:
     settings.mock_providers = True
     settings.mock_llm = True
     settings.intent_classifier_enabled = False
+    # Ignore developer .env; API tests have no Authorization header and expect unauthenticated mode.
+    settings.clerk_enabled = False
     reset_in_memory_rate_limiter_for_tests()
     yield
     reset_in_memory_rate_limiter_for_tests()
