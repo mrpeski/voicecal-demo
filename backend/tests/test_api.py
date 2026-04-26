@@ -8,7 +8,6 @@ from httpx import ASGITransport, AsyncClient
 from voicecal.agent import DoneEvent, TokenEvent, ToolCallEvent
 from voicecal.app import app
 from voicecal.eval import EvalEvent, EvalResult
-from voicecal.settings import settings
 
 
 def _sse_payloads(raw: str) -> list[str]:
@@ -18,13 +17,6 @@ def _sse_payloads(raw: str) -> list[str]:
             if line.startswith("data: "):
                 payloads.append(line[6:])
     return payloads
-
-
-@pytest.fixture(autouse=True)
-def _test_settings() -> None:
-    # Keep tests fully local/offline.
-    settings.mock_providers = True
-    settings.mock_llm = True
 
 
 @pytest.mark.asyncio
