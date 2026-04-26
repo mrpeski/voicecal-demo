@@ -4,6 +4,7 @@ import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
+import { resumeAudioFromUserGesture } from './lib/audioPlayback';
 import { clearConversation, compactConversation, fetchEvents, sendChat } from './lib/chatApi';
 import { ApiError } from './lib/apiError';
 import type { VoiceResult } from './lib/types';
@@ -406,8 +407,11 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   }
 
   function handleMicClick() {
-    if (listening) stopListening();
-    else startListening();
+    // Unlocks the Web Audio session on iOS / mobile; must run synchronously in
+    // the same gesture as tap (before any await) so TTS can play after upload.
+    resumeAudioFromUserGesture();
+    if (listening) void stopListening();
+    else void startListening();
   }
 
   // ── Keyboard shortcuts: Tab cycles modes, Space toggles recording ──────

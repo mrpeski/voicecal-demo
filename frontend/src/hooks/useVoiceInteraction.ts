@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { useMediaRecorder } from "./useMediaRecorder";
 import usePersistentState from './usePersistentState';
 import { uploadVoice } from "../lib/voiceApi";
-import { playBase64Audio } from "../lib/audioPlayback";
+import { playBase64Audio, resumeAudioFromUserGesture } from "../lib/audioPlayback";
 import type { VoiceResult } from "../lib/types";
 
 interface Options {
@@ -45,6 +45,7 @@ export function useVoiceInteraction({
     null,
   );
   const stop = useCallback(async () => {
+    resumeAudioFromUserGesture();
     const blob = await stopRecording();
     if (!blob || blob.size < minBlobSize) return;
 
@@ -53,7 +54,11 @@ export function useVoiceInteraction({
       const data = await uploadVoice(blob, { endpoint, conversationId, getToken });
       setConversationId(data.conversation_id);
       if (autoplayResponse && data.audio_base64) {
-        playBase64Audio(data.audio_base64);
+        try {
+          await playBase64Audio(data.audio_base64);
+        } catch (e) {
+          console.error("TTS playback failed", e);
+        }
       }
       onResult?.(data);
     } catch (err) {
@@ -61,7 +66,7 @@ export function useVoiceInteraction({
     } finally {
       setPending(false);
     }
-  }, [stopRecording, minBlobSize, endpoint, autoplayResponse, onResult, onError, getToken]);
+  }, [stopRecording, minBlobSize, endpoint, autoplayResponse, onResult, onError, getToken, conversationId]);
 
   return { recording, pending, start, stop };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { COLORS } from '../constants';
 import { formatDate, formatTime } from '../utils';
+import { resumeAudioFromUserGesture } from '../lib/audioPlayback';
 import ResultCard from './ResultCard';
 import Waveform from './Waveform';
 
@@ -83,6 +84,10 @@ export default function ZenView({
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
           <Waveform active={listening} />
           <button
+            type="button"
+            onPointerDown={() => {
+              resumeAudioFromUserGesture();
+            }}
             onClick={onMicClick}
             style={{
               width: 72,

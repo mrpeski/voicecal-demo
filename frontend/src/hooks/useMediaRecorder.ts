@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 
+import { resumeAudioFromUserGesture } from "../lib/audioPlayback";
+
 interface Options {
   mimeType?: string;
   onError?: (err: unknown) => void;
@@ -26,6 +28,7 @@ export function useMediaRecorder({
 
   const start = useCallback(async () => {
     try {
+      resumeAudioFromUserGesture();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
       mrRef.current = mr;
