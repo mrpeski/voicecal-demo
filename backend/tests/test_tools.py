@@ -7,7 +7,7 @@ import uuid
 import pytest
 
 from voicecal import tools
-from voicecal.errors import NotFoundError
+from voicecal.errors import NotFoundError, ToolError
 from voicecal.tools import (
     create_event_impl,
     list_events_impl,
@@ -118,3 +118,17 @@ async def test_search_calendar_history_clamps_top_k(
     assert await search_calendar_history_impl("q", top_k=0) == []
     assert await search_calendar_history_impl("q", top_k=50) == []
     assert seen == [1, 10]
+
+
+@pytest.mark.asyncio
+async def test_list_events_rejects_huge_time_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from voicecal.config.settings import settings
+
+    monkeypatch.setattr(settings, "max_list_events_range_days", 1, raising=False)
+    with pytest.raises(ToolError, match="too large|List window"):
+        await list_events_impl(
+            "2020-01-01T00:00:00+00:00",
+            "2025-01-01T00:00:00+00:00",
+        )

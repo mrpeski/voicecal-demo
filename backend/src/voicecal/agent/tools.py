@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from agents import function_tool
 
+from voicecal.agent import tool_bounds
 from voicecal.providers.calendar import MOCK_CALENDAR_STORE, get_calendar_provider
 from voicecal.rag import search
 
@@ -35,6 +36,7 @@ async def list_events(time_range_start: str, time_range_end: str) -> list[dict]:
 
 
 async def list_events_impl(time_range_start: str, time_range_end: str) -> list[dict]:
+    tool_bounds.validate_list_range(time_range_start, time_range_end)
     return await fetch_events(time_range_start, time_range_end)
 
 
@@ -65,6 +67,7 @@ async def create_event_impl(
     attendees: list[str] | None = None,
     description: str | None = None,
 ) -> dict:
+    tool_bounds.validate_create(title, description, attendees)
     backend = get_calendar_provider()
     return await backend.create_event(title, start, end, attendees, description)
 
@@ -96,10 +99,9 @@ async def update_event_impl(
     end: str | None = None,
     attendees: list[str] | None = None,
 ) -> dict:
+    tool_bounds.validate_update(event_id, title, start, end, attendees)
     backend = get_calendar_provider()
-    return await backend.update_event(
-        event_id, title, start, end, attendees
-    )
+    return await backend.update_event(event_id, title, start, end, attendees)
 
 
 @function_tool
@@ -118,6 +120,7 @@ async def search_calendar_history(query: str, top_k: int = 5) -> list[dict]:
 
 
 async def search_calendar_history_impl(query: str, top_k: int = 5) -> list[dict]:
+    tool_bounds.validate_rag_query(query)
     return await search(query, top_k=min(max(top_k, 1), 10))
 
 

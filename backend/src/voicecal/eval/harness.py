@@ -227,5 +227,3 @@ def _print_summary(results: list[EvalResult]) -> None:
         print(line)
         if r.failure_reason:
             print(f"      → {r.failure_reason}")
-
-

@@ -50,8 +50,7 @@ class CalendarProvider(Protocol):
         end: str,
         attendees: list[str] | None,
         description: str | None,
-    ) -> dict:
-        ...
+    ) -> dict: ...
 
     async def update_event(
         self,
@@ -60,16 +59,13 @@ class CalendarProvider(Protocol):
         start: str | None,
         end: str | None,
         attendees: list[str] | None,
-    ) -> dict:
-        ...
+    ) -> dict: ...
 
 
 class GoogleCalendarProvider:
     """Production: Google Calendar API (see `voicecal.integrations.google_calendar`)."""
 
-    async def list_events(
-        self, time_range_start: str, time_range_end: str
-    ) -> list[dict]:
+    async def list_events(self, time_range_start: str, time_range_end: str) -> list[dict]:
         items = await gcal.list_events(time_range_start, time_range_end)
         return [_normalize_gcal_event(ev) for ev in items]
 
@@ -111,9 +107,7 @@ class InMemoryCalendarProvider:
     def __init__(self) -> None:
         self._data = MOCK_CALENDAR_STORE
 
-    async def list_events(
-        self, time_range_start: str, time_range_end: str
-    ) -> list[dict]:
+    async def list_events(self, time_range_start: str, time_range_end: str) -> list[dict]:
         return sorted(
             (e for e in self._data.values() if time_range_start <= e["start"] < time_range_end),
             key=lambda e: e["start"],

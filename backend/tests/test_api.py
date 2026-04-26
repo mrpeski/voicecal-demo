@@ -8,6 +8,7 @@ from httpx import ASGITransport, AsyncClient
 from voicecal.agent import DoneEvent, TokenEvent, ToolCallEvent
 from voicecal.app import app
 from voicecal.eval import EvalEvent, EvalResult
+from voicecal.settings import settings
 
 
 def _sse_payloads(raw: str) -> list[str]:
@@ -84,3 +85,43 @@ async def test_eval_stream_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     assert '"status":"running"' in payloads[0]
     assert '"status":"pass"' in payloads[1]
     assert payloads[-1] == "[DONE]"
+
+
+@pytest.mark.asyncio
+async def test_chat_rejects_message_over_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "max_user_message_chars", 3, raising=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/api/chat", json={"message": "toolong"})
+    assert resp.status_code == 422
+    body = resp.json()["error"]
+    assert body["code"] == "validation_error"
+    assert "maximum" in body["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_chat_rate_limited_after_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The third in-window request returns 429 when the per-client limit is 2."""
+
+    async def light_agent(_msg: str, _conversation_id: str) -> AsyncIterator[object]:
+        yield DoneEvent()
+
+    monkeypatch.setattr("voicecal.api.main.run_agent", light_agent)
+    monkeypatch.setattr(settings, "rate_limit_max_requests", 2, raising=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        assert (await client.post("/api/chat", json={"message": "a"})).status_code == 200
+        assert (await client.post("/api/chat", json={"message": "b"})).status_code == 200
+        r3 = await client.post("/api/chat", json={"message": "c"})
+
+    assert r3.status_code == 429
+    assert r3.json()["error"]["code"] == "rate_limited"
+
+
+@pytest.mark.asyncio
+async def test_chat_rejects_off_topic_long_message() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/chat",
+            json={"message": "Lorem ipsum dolor " * 20},
+        )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "use_policy"

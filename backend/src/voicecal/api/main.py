@@ -8,14 +8,16 @@ import structlog
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from voicecal.agent import get_session, run_agent
 from voicecal.agent.tools import fetch_events
 from voicecal.config.settings import settings
-from voicecal.core.errors import AppError
+from voicecal.core.errors import AppError, PayloadTooLargeError
 from voicecal.eval import stream_evals
+from voicecal.guardrails import assert_user_text_allows, enforce_request_rate_limit
+from voicecal.llm_use_guardrails import assert_voicecal_intended_use
 from voicecal.rag import build_index
 from voicecal.voice import synthesize, transcribe
 
@@ -116,12 +118,16 @@ async def get_events(
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     message: str
     conversation_id: str | None = None  # None = start a new conversation
 
 
 @app.post("/api/chat")
-async def chat(req: ChatRequest) -> StreamingResponse:
+async def chat(request: Request, req: ChatRequest) -> StreamingResponse:
+    await enforce_request_rate_limit(request)
+    assert_user_text_allows(req.message, label="message")
+    assert_voicecal_intended_use(req.message)
     conversation_id = req.conversation_id or str(uuid4())
 
     async def stream():
@@ -137,8 +143,9 @@ async def chat(req: ChatRequest) -> StreamingResponse:
 
 
 @app.post("/api/eval")
-async def eval_endpoint() -> StreamingResponse:
+async def eval_endpoint(request: Request) -> StreamingResponse:
     """Stream the golden-set eval results, one SSE event per scenario state change."""
+    await enforce_request_rate_limit(request)
 
     async def stream():
         async for event in stream_evals():
@@ -157,9 +164,11 @@ async def clear_chat(conversation_id: str) -> dict:
 
 @app.post("/api/voice")
 async def voice_endpoint(
+    request: Request,
     audio: UploadFile = File(...),
     conversation_id: str | None = Form(default=None),
 ):
+    await enforce_request_rate_limit(request)
     # 1. Validate input
     if not audio.content_type or not audio.content_type.startswith("audio/"):
         raise HTTPException(400, f"Expected audio/*, got {audio.content_type!r}")
@@ -167,6 +176,8 @@ async def voice_endpoint(
     audio_bytes = await audio.read()
     if not audio_bytes:
         raise HTTPException(400, "Empty audio upload")
+    if len(audio_bytes) > settings.max_voice_audio_bytes:
+        raise PayloadTooLargeError("Audio file is too large.")
 
     # 2. STT
     try:
@@ -179,6 +190,8 @@ async def voice_endpoint(
 
     if not transcript.strip():
         raise HTTPException(422, "No speech detected in audio")
+    assert_user_text_allows(transcript, label="transcript")
+    assert_voicecal_intended_use(transcript)
 
     # 3. Agent run — SQLiteSession handles history
     conv_id = conversation_id or str(uuid4())

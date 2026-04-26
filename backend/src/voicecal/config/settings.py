@@ -60,6 +60,38 @@ class Settings(BaseSettings):
         """MOCK_LLM is on but real providers are used; echo is disabled, real LLM runs."""
         return self.mock_llm and not self.mock_providers
 
+    # --- API guardrails (abuse + cost) ---
+    # User text: chat and post-STT voice transcript.
+    max_user_message_chars: int = 12_000
+    max_voice_audio_bytes: int = 4 * 1024 * 1024  # 4 MiB
+
+    # In-memory rate limit: max requests per IP (or x-forwarded-for) per window.
+    # 0 = disabled.
+    rate_limit_max_requests: int = 30
+    rate_limit_window_seconds: int = 60
+
+    # Agent loop: hard cap on tool+model turns (SDK uses this for each run).
+    max_agent_turns: int = 6
+
+    # Tool sandbox: calendar list range, RAG query, and event string sizes.
+    max_list_events_range_days: int = 800  # allow ~2+ years, block huge scans
+    max_rag_query_chars: int = 2_000
+    max_event_title_len: int = 500
+    max_event_description_len: int = 20_000
+    max_event_attendees: int = 100
+    max_event_id_len: int = 500
+
+    # --- LLM abuse / off-topic use (single-purpose: calendar assistant) ---
+    # When true, user text is checked for obvious prompt-injection, code dumps,
+    # and long off-topic text with no calendar/scheduling signal. Eval harness
+    # sets this to False for golden runs. 0 = skip relevance check for "short" turns.
+    abuse_guards_enabled: bool = True
+    abuse_injection_guards: bool = True
+    abuse_code_paste_guards: bool = True
+    abuse_calendar_relevance: bool = True
+    # Shorter or equal: allow without a calendar signal (e.g. "ok", "yes, 3pm is fine" may be short;
+    # longer: must match something calendar-related).
+    abuse_short_message_max_chars: int = 120
+
 
 settings = Settings()
-

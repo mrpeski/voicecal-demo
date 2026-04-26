@@ -34,6 +34,7 @@ log = structlog.get_logger()
 # The Agents SDK reads OPENAI_API_KEY from the environment.
 os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key.get_secret_value())
 
+
 # Path for the SQLite file backing conversation sessions.
 # Lambda's /var/task is read-only, so default to /tmp there.
 def _default_sessions_db() -> str:
@@ -248,9 +249,7 @@ async def _heuristic_fallback(user_message: str) -> AsyncIterator[AgentEvent]:
                 status="done",
                 result=json.dumps(created, default=str),
             )
-            yield TokenEvent(
-                text=f"Scheduled: {title}. Request: {cleaned}\n"
-            )
+            yield TokenEvent(text=f"Scheduled: {title}. Request: {cleaned}\n")
             return
 
         if intent == "update_event":
@@ -298,9 +297,7 @@ async def _heuristic_fallback(user_message: str) -> AsyncIterator[AgentEvent]:
                 status="done",
                 result=json.dumps(results, default=str),
             )
-            yield TokenEvent(
-                text=f"Searching history for: {user_message.strip()}\n"
-            )
+            yield TokenEvent(text=f"Searching history for: {user_message.strip()}\n")
             return
 
         if intent == "list_events":
@@ -314,9 +311,7 @@ async def _heuristic_fallback(user_message: str) -> AsyncIterator[AgentEvent]:
                 status="done",
                 result=json.dumps(results, default=str),
             )
-            yield TokenEvent(
-                text=f"Listing calendar. Request: {user_message.strip()}\n"
-            )
+            yield TokenEvent(text=f"Listing calendar. Request: {user_message.strip()}\n")
     except Exception:
         log.exception("heuristic_fallback_failed")
 
@@ -359,10 +354,7 @@ async def run_mock_provider_heuristic_recovery(
     if not saw_tool_call:
         async for event in _heuristic_fallback(user_message):
             yield event
-    elif (
-        "update_event" not in tool_done_names
-        and _infer_intent(user_message) == "update_event"
-    ):
+    elif "update_event" not in tool_done_names and _infer_intent(user_message) == "update_event":
         async for event in _heuristic_fallback(user_message):
             yield event
 
@@ -403,7 +395,7 @@ async def run_agent(
             agent,
             input=user_message,
             session=session,
-            max_turns=6,
+            max_turns=settings.max_agent_turns,
         )
 
         saw_tool_call = False

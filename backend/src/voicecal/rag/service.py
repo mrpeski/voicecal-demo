@@ -20,6 +20,7 @@ from voicecal.integrations.google_calendar import list_events as gcal_list_event
 
 log = structlog.get_logger()
 
+
 # Persist to disk so restarts are cheap. Lambda's /var/task is read-only,
 # so prefer CHROMA_DIR env var if set, then /tmp on Lambda, else next to the
 # backend source for local dev.
