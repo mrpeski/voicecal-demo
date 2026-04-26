@@ -125,3 +125,34 @@ async def test_chat_rejects_off_topic_long_message() -> None:
         )
     assert resp.status_code == 422
     assert resp.json()["error"]["code"] == "use_policy"
+
+
+@pytest.mark.asyncio
+async def test_chat_rejects_trivia_short_message() -> None:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post(
+            "/api/chat",
+            json={"message": "What is the capital of France?"},
+        )
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "use_policy"
+
+
+@pytest.mark.asyncio
+async def test_chat_classifier_wired_before_stream(monkeypatch: pytest.MonkeyPatch) -> None:
+    from voicecal.core.errors import UsePolicyError
+    from voicecal.llm_use_guardrails import OUT_OF_SCOPE
+
+    called: list[str] = []
+
+    async def _block(msg: str) -> None:
+        called.append(msg)
+        raise UsePolicyError(OUT_OF_SCOPE)
+
+    monkeypatch.setattr("voicecal.api.main.require_in_scope_by_classifier", _block)
+    monkeypatch.setattr(settings, "intent_classifier_enabled", True, raising=False)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        resp = await client.post("/api/chat", json={"message": "ping"})
+    assert resp.status_code == 422
+    assert called == ["ping"]
+    assert resp.json()["error"]["code"] == "use_policy"

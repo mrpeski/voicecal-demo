@@ -17,6 +17,7 @@ from voicecal.config.settings import settings
 from voicecal.core.errors import AppError, PayloadTooLargeError
 from voicecal.eval import stream_evals
 from voicecal.guardrails import assert_user_text_allows, enforce_request_rate_limit
+from voicecal.intent_classifier import require_in_scope_by_classifier
 from voicecal.llm_use_guardrails import assert_voicecal_intended_use
 from voicecal.rag import build_index
 from voicecal.voice import synthesize, transcribe
@@ -128,6 +129,7 @@ async def chat(request: Request, req: ChatRequest) -> StreamingResponse:
     await enforce_request_rate_limit(request)
     assert_user_text_allows(req.message, label="message")
     assert_voicecal_intended_use(req.message)
+    await require_in_scope_by_classifier(req.message)
     conversation_id = req.conversation_id or str(uuid4())
 
     async def stream():
@@ -192,6 +194,7 @@ async def voice_endpoint(
         raise HTTPException(422, "No speech detected in audio")
     assert_user_text_allows(transcript, label="transcript")
     assert_voicecal_intended_use(transcript)
+    await require_in_scope_by_classifier(transcript)
 
     # 3. Agent run — SQLiteSession handles history
     conv_id = conversation_id or str(uuid4())

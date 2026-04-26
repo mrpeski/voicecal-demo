@@ -1,6 +1,6 @@
 import type { StreamEvent, Message } from "./types";
 import { apiUrl } from "./apiBase";
-
+import { toApiError } from "./apiError";
 
 export async function* streamChat(
   text: string,
@@ -17,7 +17,12 @@ export async function* streamChat(
     }),
   });
 
-  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) {
+    throw await toApiError(res, "Chat request failed");
+  }
+  if (!res.body) {
+    throw new Error("Chat response stream was empty");
+  }
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();

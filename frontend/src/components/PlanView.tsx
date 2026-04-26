@@ -93,7 +93,7 @@ export default function PlanView({
           <ResultCard
             result={result}
             onDismiss={
-              result.state === 'done'
+              result.state === 'done' || result.state === 'error'
                 ? () => {
                     onDismissResult();
                     window.speechSynthesis?.cancel();

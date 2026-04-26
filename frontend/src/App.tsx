@@ -5,6 +5,7 @@ import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
 import { fetchEvents, sendChat } from './lib/chatApi';
+import { ApiError } from './lib/apiError';
 import type { VoiceResult } from './lib/types';
 
 import Header from './components/Header';
@@ -114,6 +115,15 @@ export default function App() {
 
   function toResultCard(result: VoiceCalQueryResult): ResultCardResult | undefined {
     if (!result) return undefined;
+    if (result.state === 'error') {
+      return {
+        state: 'error',
+        transcript: result.transcript,
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+        httpStatus: result.httpStatus,
+      };
+    }
     const normalizedState: ResultCardState = result.state === 'done' ? 'done' : 'thinking';
     return {
       state: normalizedState,
@@ -126,6 +136,25 @@ export default function App() {
 
   const { recording: listening, start: startListening, stop: stopListening } = useVoiceInteraction({
     onResult: handleVoiceResult,
+    onError: (err) => {
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      if (err instanceof ApiError) {
+        setActiveResult({
+          state: 'error',
+          transcript: 'Voice',
+          errorCode: err.code,
+          errorMessage: err.message,
+          httpStatus: err.status,
+        });
+        return;
+      }
+      setActiveResult({
+        state: 'error',
+        transcript: 'Voice',
+        errorCode: 'client_error',
+        errorMessage: err instanceof Error ? err.message : 'Voice request failed',
+      });
+    },
   });
 
   const [conversationId, setConversationId] = usePersistentState<string | null>(
@@ -255,12 +284,27 @@ export default function App() {
         })),
       });
     } catch (err) {
+      if ((err as { name?: string })?.name === 'AbortError') {
+        setActiveResult(null);
+        return;
+      }
       console.error('chat failed', err);
-      setActiveResult({
-        state: 'done',
-        transcript,
-        text: 'Sorry, something went wrong reaching the assistant.',
-      });
+      if (err instanceof ApiError) {
+        setActiveResult({
+          state: 'error',
+          transcript,
+          errorCode: err.code,
+          errorMessage: err.message,
+          httpStatus: err.status,
+        });
+      } else {
+        setActiveResult({
+          state: 'error',
+          transcript,
+          errorCode: 'client_error',
+          errorMessage: err instanceof Error ? err.message : 'Sorry, something went wrong.',
+        });
+      }
     }
   }
 

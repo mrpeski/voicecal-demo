@@ -47,7 +47,6 @@ export default function ResultCard({ result, onDismiss }: ResultCardProps) {
   if (!result) return null;
   const showStreamingContent =
     result.state === 'thinking' && (Boolean(result.text) || Boolean(result.toolCalls?.length));
-
   return (
     <div
       style={{
@@ -125,6 +124,73 @@ export default function ResultCard({ result, onDismiss }: ResultCardProps) {
         <div style={{ color: 'var(--text2)', fontSize: 13, fontStyle: 'italic' }}>
           &quot;{result.transcript}&quot;
         </div>
+      )}
+
+      {/* API / guardrail error (e.g. use_policy, rate_limited, validation_error) */}
+      {result.state === 'error' && result.errorMessage && (
+        <>
+          {onDismiss && (
+            <button
+              onClick={onDismiss}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                background: 'none',
+                border: 'none',
+                color: 'var(--text3)',
+                cursor: 'pointer',
+                fontSize: 13,
+                padding: '2px 4px',
+              }}
+            >
+              ✕
+            </button>
+          )}
+          {result.transcript && (
+            <div
+              style={{
+                fontSize: 12,
+                color: 'var(--text3)',
+                marginBottom: 8,
+                fontStyle: 'italic',
+                paddingRight: 20,
+              }}
+            >
+              &quot;{result.transcript}&quot;
+            </div>
+          )}
+          <div
+            style={{
+              borderLeft: '3px solid oklch(65% 0.2 30)',
+              padding: '10px 12px',
+              background: 'oklch(30% 0.03 30 / 0.15)',
+              borderRadius: 8,
+            }}
+          >
+            {result.errorCode && (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text2)',
+                  marginBottom: 6,
+                  fontFamily: 'ui-monospace, Menlo, monospace',
+                }}
+              >
+                {result.errorCode}
+                {result.httpStatus != null ? (
+                  <span style={{ fontWeight: 500, color: 'var(--text3)', marginLeft: 6 }}>
+                    HTTP {result.httpStatus}
+                  </span>
+                ) : null}
+              </div>
+            )}
+            <div style={{ fontSize: 14, color: 'var(--text)', lineHeight: 1.55 }}>{result.errorMessage}</div>
+          </div>
+        </>
       )}
 
       {/* Done state */}

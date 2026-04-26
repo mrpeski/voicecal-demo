@@ -88,10 +88,16 @@ class Settings(BaseSettings):
     abuse_guards_enabled: bool = True
     abuse_injection_guards: bool = True
     abuse_code_paste_guards: bool = True
+    # Obvious general-knowledge / homework / translation (checked at any length).
+    abuse_off_topic_guards: bool = True
     abuse_calendar_relevance: bool = True
     # Shorter or equal: allow without a calendar signal (e.g. "ok", "yes, 3pm is fine" may be short;
     # longer: must match something calendar-related).
     abuse_short_message_max_chars: int = 120
+
+    # Optional: small fast LLM over user text when heuristics did not find a strong calendar signal.
+    intent_classifier_enabled: bool = True
+    intent_classifier_model: str = "gpt-4o-mini"
 
 
 settings = Settings()

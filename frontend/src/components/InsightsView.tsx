@@ -223,7 +223,9 @@ ${d.prompt}`;
           {result ? (
             <ResultCard
               result={result}
-              onDismiss={result.state === 'done' ? onDismissResult : undefined}
+              onDismiss={
+                result.state === 'done' || result.state === 'error' ? onDismissResult : undefined
+              }
             />
           ) : (
             <button

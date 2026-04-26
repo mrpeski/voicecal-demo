@@ -9,6 +9,12 @@ import re
 from voicecal.config.settings import settings
 from voicecal.core.errors import UsePolicyError
 
+OUT_OF_SCOPE = (
+    "I can only help with your calendar, meetings, and schedule. "
+    "Ask me what's on your calendar, to book or move an event, or "
+    "to search past events."
+)
+
 # Obvious system / instruction override and meta-prompts (heuristic; not exhaustive).
 _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(
@@ -33,6 +39,30 @@ _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     ),
 )
 
+# Trivia, homework, translation, etc. — not calendar scope (any message length;
+# short "general knowledge" questions used to skip the long-message calendar check).
+_OFF_TASK_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"(?i)\bwhat\s+is\s+the\s+capital\s+of\b"),
+    re.compile(r"(?i)\bwhat\s+is\s+the\s+(currency|population|demonym|postal)\s+of\b"),
+    re.compile(
+        r"(?i)\b(what|which|who)\s+(is|are|was|were)\s+the\s+"
+        r"(largest|second[- ]?largest|highest|deepest|longest)\s+"
+        r"(river|ocean|mountain|lake|desert|island|country|planet)\b"
+    ),
+    re.compile(
+        r"(?i)\b(translate|translating)\s+"
+        r"(the\s+following|this\s+paragraph|from\s+\w+\s+to\s+\w+)\b"
+    ),
+    re.compile(r"(?i)\b(write|draft)\s+(me\s+)?(a|an)\s+(essay|article|thesis|rap|poem)\b"),
+    re.compile(r"(?i)(^\s*|\n\s*)(simplify|integrate|differentiate|derive)\b"),
+    re.compile(r"(?i)(^\s*|\n\s*)solve(\s+for| this equation)\b"),
+    re.compile(r"(?i)\b(sort|implement|debug|refactor)\s+(this|the|my)\s+code\b"),
+    re.compile(r"(?i)\b(how to)\s+(conjugate|install|compile|set up|configure|deploy)\b"),
+    re.compile(r"(?i)\bwho (invented|discovered) the (theory|atom|laser|vaccine)\b"),
+    re.compile(r"(?i)\b(list|name)\s+all\s+the\s+(u\.s\.\s+)?states\b"),
+    re.compile(r"(?i)\bwhat\s+is\s+[\d.+\-*/=^\s()]{5,}\?"),
+)
+
 # Calendar / scheduling: enough signal that the user is in scope (or a short follow-up).
 _RE_CALENDAR_CUE = re.compile(
     r"""(?ix)
@@ -50,6 +80,14 @@ _RE_CALENDAR_CUE = re.compile(
     """,
     re.VERBOSE,
 )
+
+
+def has_strong_calendar_signal(text: str) -> bool:
+    """Heuristic: enough scheduling keywords to skip a secondary LLM intent call."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    return _RE_CALENDAR_CUE.search(t) is not None
 
 
 def _looks_like_code_paste(t: str) -> bool:
@@ -93,13 +131,15 @@ def assert_voicecal_intended_use(text: str) -> None:
             "content in a development tool instead."
         )
 
+    if settings.abuse_off_topic_guards:
+        for p in _OFF_TASK_PATTERNS:
+            if p.search(ref):
+                raise UsePolicyError(OUT_OF_SCOPE)
+
     if not settings.abuse_calendar_relevance:
         return
     if len(ref) <= settings.abuse_short_message_max_chars:
         return
     if _RE_CALENDAR_CUE.search(ref):
         return
-    raise UsePolicyError(
-        "I can only help with your calendar, meetings, and schedule. "
-        "Ask me what's on your calendar, to book or move an event, or to search past events."
-    )
+    raise UsePolicyError(OUT_OF_SCOPE)

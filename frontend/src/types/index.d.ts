@@ -14,12 +14,12 @@ declare global {
 
   type VoiceCalTweakSettings = typeof import('../constants').TWEAK_DEFAULTS;
 
-  type VoiceCalResultState = 'thinking' | 'done';
+  type VoiceCalResultState = 'thinking' | 'done' | 'error';
 
   interface ResultCardEventInfo
     extends Pick<VoiceCalEvent, 'title' | 'date' | 'startTime' | 'endTime' | 'colorIndex'> {}
 
-  type ResultCardState = 'thinking' | 'listening' | 'done';
+  type ResultCardState = 'thinking' | 'listening' | 'done' | 'error';
 
   interface ToolCallDisplay {
     name: string;
@@ -33,6 +33,10 @@ declare global {
     text?: string;
     newEvents?: ResultCardEventInfo[];
     toolCalls?: ToolCallDisplay[];
+    /** Set when `state` is `error` — from FastAPI `{ error: { code, message } }`. */
+    errorCode?: string;
+    errorMessage?: string;
+    httpStatus?: number;
   }
 
   interface VoiceCalQueryData {
@@ -41,6 +45,9 @@ declare global {
     text?: string;
     newEvents?: ResultCardEventInfo[];
     toolCalls?: ToolCallDisplay[];
+    errorCode?: string;
+    errorMessage?: string;
+    httpStatus?: number;
   }
 
   type VoiceCalQueryResult = VoiceCalQueryData | null;

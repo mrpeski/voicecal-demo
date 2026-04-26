@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { ApiError } from '../lib/apiError';
 import { runEvals, type EvalResult, type EvalStatus } from '../lib/evalApi';
 
 interface EvalPanelProps {
@@ -57,6 +58,10 @@ export default function EvalPanel({ open, onClose }: EvalPanelProps) {
       });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') return;
+      if (err instanceof ApiError) {
+        setError(`${err.message} [${err.code} · HTTP ${err.status}]`);
+        return;
+      }
       setError((err as Error).message);
     } finally {
       setRunning(false);
