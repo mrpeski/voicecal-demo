@@ -114,7 +114,7 @@ async def test_search_calendar_history_clamps_top_k(
         seen.append(top_k)
         return []
 
-    monkeypatch.setattr("voicecal.tools.search", fake_search)
+    monkeypatch.setattr("voicecal.agent.tools.search", fake_search)
     assert await search_calendar_history_impl("q", top_k=0) == []
     assert await search_calendar_history_impl("q", top_k=50) == []
     assert seen == [1, 10]

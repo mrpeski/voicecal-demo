@@ -15,8 +15,8 @@ import chromadb
 import structlog
 from openai import AsyncOpenAI
 
-from voicecal.calendar import list_events as gcal_list_events
-from voicecal.settings import settings
+from voicecal.config.settings import settings
+from voicecal.integrations.google_calendar import list_events as gcal_list_events
 
 log = structlog.get_logger()
 
@@ -28,7 +28,7 @@ def _resolve_chroma_dir() -> Path:
         return Path(env_dir)
     if os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         return Path("/tmp/chroma")
-    return Path(__file__).resolve().parents[2] / "chroma"
+    return Path(__file__).resolve().parents[3] / "chroma"
 
 
 _CHROMA_DIR = _resolve_chroma_dir()

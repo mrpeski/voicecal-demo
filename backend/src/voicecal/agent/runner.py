@@ -20,14 +20,14 @@ from agents import Agent, Runner, SQLiteSession, trace
 from openai.types.responses import ResponseTextDeltaEvent
 from pydantic import BaseModel
 
-from voicecal.settings import settings
-from voicecal.tools import (
+from voicecal.agent.tools import (
     TOOLS,
     create_event_impl,
     list_events_impl,
     search_calendar_history_impl,
     update_event_impl,
 )
+from voicecal.config.settings import settings
 
 log = structlog.get_logger()
 

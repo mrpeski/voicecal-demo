@@ -36,7 +36,7 @@ async def test_chat_stream_contract(monkeypatch: pytest.MonkeyPatch) -> None:
         yield ToolCallEvent(name="list_events", status="done", result='{"ok": true}')
         yield DoneEvent()
 
-    monkeypatch.setattr("voicecal.app.run_agent", fake_run_agent)
+    monkeypatch.setattr("voicecal.api.main.run_agent", fake_run_agent)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/api/chat", json={"message": "hi"})
@@ -72,7 +72,7 @@ async def test_eval_stream_contract(monkeypatch: pytest.MonkeyPatch) -> None:
             )
         )
 
-    monkeypatch.setattr("voicecal.app.stream_evals", fake_stream_evals)
+    monkeypatch.setattr("voicecal.api.main.stream_evals", fake_stream_evals)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         resp = await client.post("/api/eval")

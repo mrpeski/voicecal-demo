@@ -11,7 +11,6 @@ Usage:
 
 from __future__ import annotations
 
-import asyncio
 import json
 import os
 import time
@@ -25,8 +24,8 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 
 from voicecal.agent import ToolCallEvent, run_agent
-from voicecal.settings import settings
-from voicecal.tools import _events  # in-memory mock store
+from voicecal.agent.tools import _events
+from voicecal.config.settings import settings
 
 
 def _resolve_golden_path() -> Path:
@@ -38,7 +37,7 @@ def _resolve_golden_path() -> Path:
     """
     if env_path := os.environ.get("VOICECAL_EVAL_PATH"):
         return Path(env_path)
-    return Path(__file__).resolve().parents[3] / "eval" / "golden.jsonl"
+    return Path(__file__).resolve().parents[4] / "eval" / "golden.jsonl"
 
 
 GOLDEN_PATH = _resolve_golden_path()
@@ -230,6 +229,3 @@ def _print_summary(results: list[EvalResult]) -> None:
             print(f"      → {r.failure_reason}")
 
 
-if __name__ == "__main__":
-    results = asyncio.run(run_evals())
-    _print_summary(results)

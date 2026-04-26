@@ -9,4 +9,4 @@ Running `uv run uvicorn voicecal.app:app --reload --port 8000` will start the se
 import uvicorn
 
 if __name__ == "__main__":
-    uvicorn.run("voicecal.app:create_app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("voicecal.app:app", host="0.0.0.0", port=8000, reload=True)

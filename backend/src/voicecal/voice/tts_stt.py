@@ -6,7 +6,7 @@ import io
 
 from openai import AsyncOpenAI
 
-from voicecal.settings import settings
+from voicecal.config.settings import settings
 
 _client = AsyncOpenAI(api_key=settings.openai_api_key.get_secret_value())
 
