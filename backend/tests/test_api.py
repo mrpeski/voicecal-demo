@@ -88,6 +88,22 @@ async def test_eval_stream_contract(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_chat_compact_and_clear_routes() -> None:
+    """/compact and /clear return JSON; mock mode returns compacted=false for compact."""
+    cid = "00000000-0000-0000-0000-000000000001"
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        c = await client.post(f"/api/chat/{cid}/compact")
+        assert c.status_code == 200
+        data = c.json()
+        assert data["ok"] is True
+        assert "compacted" in data
+        assert "message" in data
+        r = await client.post(f"/api/chat/{cid}/clear")
+    assert r.status_code == 200
+    assert r.json() == {"ok": True}
+
+
+@pytest.mark.asyncio
 async def test_chat_rejects_message_over_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "max_user_message_chars", 3, raising=False)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

@@ -13,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from voicecal.agent import get_session, run_agent
+from voicecal.agent.session_compaction import force_compact_session
 from voicecal.agent.tools import fetch_events
 from voicecal.api.dependencies import require_clerk_user_id
 from voicecal.config.settings import settings
@@ -176,6 +177,20 @@ async def clear_chat(
     session = get_session(conversation_id)
     await session.clear_session()
     return {"ok": True}
+
+
+@app.post("/api/chat/{conversation_id}/compact")
+async def compact_chat(
+    conversation_id: str,
+    _user_id: str = Depends(require_clerk_user_id),
+) -> dict:
+    session = get_session(conversation_id)
+    result = await force_compact_session(session)
+    return {
+        "ok": True,
+        "compacted": result.compacted,
+        "message": result.message,
+    }
 
 
 @app.post("/api/voice")

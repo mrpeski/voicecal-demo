@@ -5,6 +5,7 @@ next `Runner` call stays under ~60% of a nominal context budget (implicit compac
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Any, cast
 
 import structlog
@@ -13,6 +14,7 @@ from agents.items import TResponseInputItem
 from openai import AsyncOpenAI
 
 from voicecal.config.settings import settings
+from voicecal.core.errors import ProviderError
 
 log = structlog.get_logger()
 
@@ -57,7 +59,7 @@ async def _llm_compact_summary(brief: str) -> str:
     r = await _client().chat.completions.create(
         model=settings.compaction_summary_model,
         temperature=0.2,
-        max_tokens=800,
+        max_completion_tokens=800,
         messages=[
             {
                 "role": "system",
@@ -126,4 +128,58 @@ async def maybe_compact_session(
         estimated_tokens_before=total,
         budget=budget,
         threshold=threshold,
+    )
+
+
+@dataclass(frozen=True)
+class ForceCompactResult:
+    compacted: bool
+    message: str
+
+
+async def force_compact_session(session: SQLiteSession) -> ForceCompactResult:
+    """User-initiated compaction: always summarize old items when any exist, subject to
+    the same keep-last window as automatic compaction. Unlike implicit compaction, this
+    can run when history is under the context budget.
+    """
+    if settings.use_deterministic_llm_echo:
+        return ForceCompactResult(
+            False,
+            "Compaction is not available in mock LLM mode.",
+        )
+    if not settings.session_compaction_enabled:
+        return ForceCompactResult(
+            False,
+            "Session compaction is disabled in settings.",
+        )
+    if not settings.openai_api_key.get_secret_value().strip():
+        raise ProviderError("OpenAI API key is required to compact conversation history.")
+    raw: list[object] = await session.get_items()
+    items = cast(list[dict[str, Any]], raw)
+    if not items:
+        return ForceCompactResult(False, "No conversation history to compact.")
+
+    keep = max(2, int(settings.compaction_keep_last_items))
+    n = len(items)
+    if n > keep:
+        head, tail = items[:-keep], list(items[-keep:])
+    else:
+        head, tail = list(items), []
+
+    brief = _items_to_brief_text(head)
+    summary = await _llm_compact_summary(brief)
+    new_items: list[dict[str, Any]] = [_summary_user_item(summary)]
+    if tail:
+        new_items.extend(tail)
+
+    await session.clear_session()
+    await session.add_items(cast(list[TResponseInputItem], new_items))
+    log.info(
+        "session_compacted",
+        before_item_count=n,
+        after_item_count=len(new_items),
+        path="force",
+    )
+    return ForceCompactResult(
+        True, "Earlier turns were compacted into a short summary. Recent messages were kept."
     )

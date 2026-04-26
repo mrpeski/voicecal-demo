@@ -81,7 +81,7 @@ async def require_in_scope_by_classifier(user_message: str) -> None:
         r = await _get_client().chat.completions.create(
             model=settings.intent_classifier_model,
             temperature=0,
-            max_tokens=32,
+            max_completion_tokens=32,
             messages=[
                 {"role": "system", "content": _SYSTEM},
                 {"role": "user", "content": f"User message:\n{text}\n\nJSON only:"},

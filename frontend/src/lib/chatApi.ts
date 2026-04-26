@@ -126,3 +126,42 @@ export async function sendChat(
 
   return { conversation_id: convId, text, tool_calls: toolCalls, structured };
 }
+
+export async function clearConversation(
+  conversationId: string,
+  getToken?: () => Promise<string | null>,
+): Promise<void> {
+  const res = await fetch(
+    apiUrl(`/api/chat/${encodeURIComponent(conversationId)}/clear`),
+    {
+      method: "POST",
+      headers: await withAuthHeaders(getToken),
+    },
+  );
+  if (!res.ok) {
+    throw await toApiError(res, "Clear conversation failed");
+  }
+}
+
+export interface CompactConversationResult {
+  ok: boolean;
+  compacted: boolean;
+  message: string;
+}
+
+export async function compactConversation(
+  conversationId: string,
+  getToken?: () => Promise<string | null>,
+): Promise<CompactConversationResult> {
+  const res = await fetch(
+    apiUrl(`/api/chat/${encodeURIComponent(conversationId)}/compact`),
+    {
+      method: "POST",
+      headers: await withAuthHeaders(getToken),
+    },
+  );
+  if (!res.ok) {
+    throw await toApiError(res, "Compact conversation failed");
+  }
+  return (await res.json()) as CompactConversationResult;
+}

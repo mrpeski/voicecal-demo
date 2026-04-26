@@ -4,7 +4,7 @@ import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
-import { fetchEvents, sendChat } from './lib/chatApi';
+import { clearConversation, compactConversation, fetchEvents, sendChat } from './lib/chatApi';
 import { ApiError } from './lib/apiError';
 import type { VoiceResult } from './lib/types';
 
@@ -174,6 +174,13 @@ export default function App({ getToken, userButton }: AppProps = {}) {
     null,
   );
 
+  function parseSlashCommand(message: string): 'clear' | 'compact' | null {
+    const s = message.trim();
+    const m = /^\/(clear|compact)\s*$/i.exec(s);
+    if (!m) return null;
+    return m[1].toLowerCase() as 'clear' | 'compact';
+  }
+
   function toolOutputToLocalEvent(raw: string): VoiceCalEvent | null {
     try {
       const ev = JSON.parse(raw) as {
@@ -215,6 +222,82 @@ export default function App({ getToken, userButton }: AppProps = {}) {
     const trimmed = message.trim();
     if (!trimmed) return;
     const transcript = (displayLabel ?? trimmed).trim();
+
+    const slash = parseSlashCommand(trimmed);
+    if (slash === 'clear') {
+      try {
+        if (conversationId) {
+          await clearConversation(conversationId, getToken);
+        }
+        setConversationId(null);
+        setActiveResult({
+          state: 'done',
+          transcript: displayLabel?.trim() || 'Clear',
+          text: conversationId
+            ? 'Conversation cleared. Your next message starts a fresh thread.'
+            : 'Nothing to clear — there was no active saved conversation.',
+        });
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setActiveResult({
+            state: 'error',
+            transcript: 'Clear',
+            errorCode: err.code,
+            errorMessage: err.message,
+            httpStatus: err.status,
+          });
+        } else {
+          setActiveResult({
+            state: 'error',
+            transcript: 'Clear',
+            errorCode: 'client_error',
+            errorMessage: err instanceof Error ? err.message : 'Clear failed.',
+          });
+        }
+      }
+      return;
+    }
+    if (slash === 'compact') {
+      if (!conversationId) {
+        setActiveResult({
+          state: 'done',
+          transcript: displayLabel?.trim() || 'Compact',
+          text: 'No active conversation to compact. Send a message first, then you can use /compact.',
+        });
+        return;
+      }
+      setActiveResult({ state: 'thinking', transcript: displayLabel?.trim() || 'Compact', text: '', toolCalls: [] });
+      try {
+        const res = await compactConversation(conversationId, getToken);
+        setActiveResult({
+          state: 'done',
+          transcript: displayLabel?.trim() || 'Compact',
+          text: res.message,
+        });
+      } catch (err) {
+        if ((err as { name?: string })?.name === 'AbortError') {
+          setActiveResult(null);
+          return;
+        }
+        if (err instanceof ApiError) {
+          setActiveResult({
+            state: 'error',
+            transcript: 'Compact',
+            errorCode: err.code,
+            errorMessage: err.message,
+            httpStatus: err.status,
+          });
+        } else {
+          setActiveResult({
+            state: 'error',
+            transcript: 'Compact',
+            errorCode: 'client_error',
+            errorMessage: err instanceof Error ? err.message : 'Compact failed.',
+          });
+        }
+      }
+      return;
+    }
 
     setActiveResult({ state: 'thinking', transcript, text: '', toolCalls: [] });
     try {
