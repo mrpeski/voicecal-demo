@@ -12,7 +12,7 @@ import os
 import re
 from collections.abc import AsyncIterator
 from datetime import datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import structlog
@@ -29,6 +29,7 @@ from voicecal.agent.tools import (
     update_event_impl,
 )
 from voicecal.config.settings import settings
+from voicecal.structured.generate import build_structured_demo_bundle, demo_structured_fixtures
 
 log = structlog.get_logger()
 
@@ -80,7 +81,14 @@ class DoneEvent(BaseModel):
     type: Literal["done"] = "done"
 
 
-AgentEvent = TokenEvent | ToolCallEvent | DoneEvent
+class StructuredEvent(BaseModel):
+    """UI payload from OpenAI structured output (chips, planning, conflicts, …)."""
+
+    type: Literal["structured"] = "structured"
+    data: dict[str, Any]
+
+
+AgentEvent = TokenEvent | ToolCallEvent | DoneEvent | StructuredEvent
 
 
 def _infer_intent(user_message: str) -> str | None:
@@ -321,7 +329,7 @@ def _build_agent(instructions: str) -> Agent:
     return Agent(
         name="VoiceCal",
         instructions=instructions,
-        model="gpt-4o-mini",
+        model=settings.agent_model,
         tools=TOOLS,
     )
 
@@ -340,7 +348,7 @@ async def run_deterministic_mock_llm(user_message: str) -> AsyncIterator[AgentEv
     response_text = f"You said: {user_message}"
     for word in response_text.split(" "):
         yield TokenEvent(text=word + " ")
-    yield DoneEvent()
+    # DoneEvent is emitted by `run_agent` after optional structured output.
 
 
 async def run_mock_provider_heuristic_recovery(
@@ -376,6 +384,11 @@ async def run_agent(
     if settings.use_deterministic_llm_echo:
         async for event in run_deterministic_mock_llm(user_message):
             yield event
+        if settings.structured_outputs_enabled:
+            yield StructuredEvent(
+                data=demo_structured_fixtures().model_dump(mode="json"),
+            )
+        yield DoneEvent()
         return
 
     agent = _build_agent(instructions)
@@ -390,7 +403,7 @@ async def run_agent(
         group_id=conversation_id,
         metadata={
             "user_timezone": settings.user_timezone,
-            "model": "gpt-4o-mini",
+            "model": settings.agent_model,
         },
     ):
         result = Runner.run_streamed(
@@ -402,10 +415,13 @@ async def run_agent(
 
         saw_tool_call = False
         tool_done_names: set[str] = set()
+        text_parts: list[str] = []
+        tool_trace_lines: list[str] = []
         try:
             async for event in result.stream_events():
                 if event.type == "raw_response_event":
                     if isinstance(event.data, ResponseTextDeltaEvent):
+                        text_parts.append(event.data.delta)
                         yield TokenEvent(text=event.data.delta)
                     continue
 
@@ -426,6 +442,7 @@ async def run_agent(
                             result_str = json.dumps(item.output, default=str)
                         except (TypeError, ValueError):
                             result_str = str(item.output)
+                        tool_trace_lines.append(f"{name}: {result_str[:3000]}")
                         yield ToolCallEvent(
                             name=name,
                             status="done",
@@ -441,6 +458,22 @@ async def run_agent(
         saw_tool_call=saw_tool_call,
         tool_done_names=tool_done_names,
     ):
+        if event.type == "token":
+            text_parts.append(event.text)
         yield event
+
+    asst = "".join(text_parts)
+    tool_trace_str = "\n".join(tool_trace_lines)
+    if settings.structured_outputs_enabled and not settings.use_deterministic_llm_echo:
+        try:
+            bundle = await build_structured_demo_bundle(
+                user_message=user_message,
+                assistant_text=asst,
+                tool_trace=tool_trace_str,
+            )
+            if bundle is not None:
+                yield StructuredEvent(data=bundle.model_dump(mode="json"))
+        except Exception:
+            log.exception("structured_event_failed", conversation_id=conversation_id)
 
     yield DoneEvent()

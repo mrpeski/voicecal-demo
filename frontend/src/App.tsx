@@ -117,6 +117,8 @@ export default function App({ getToken, userButton }: AppProps = {}) {
         status: tc.status,
         resultPreview: tc.result?.slice(0, 160) ?? undefined,
       })),
+      structuredData: result.structured_data ?? undefined,
+      sttStructured: result.stt_structured ?? undefined,
     });
   }
 
@@ -138,6 +140,8 @@ export default function App({ getToken, userButton }: AppProps = {}) {
       text: result.text,
       newEvents: result.newEvents,
       toolCalls: result.toolCalls,
+      structuredData: result.structuredData,
+      sttStructured: result.sttStructured,
     };
   }
 
@@ -291,6 +295,7 @@ export default function App({ getToken, userButton }: AppProps = {}) {
           status: tc.status,
           resultPreview: tc.result?.slice(0, 160) ?? undefined,
         })),
+        structuredData: result.structured ?? undefined,
       });
     } catch (err) {
       if ((err as { name?: string })?.name === 'AbortError') {

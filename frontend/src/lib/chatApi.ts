@@ -1,4 +1,4 @@
-import type { StreamEvent, ToolCallEvent } from "./types";
+import type { StreamEvent, StructuredDemoData, ToolCallEvent } from "./types";
 import { apiUrl } from "./apiBase";
 import { toApiError } from "./apiError";
 import { withAuthHeaders } from "./authHeaders";
@@ -40,6 +40,7 @@ export interface ChatResult {
   conversation_id: string | null;
   text: string;
   tool_calls: ToolCallEvent[];
+  structured: StructuredDemoData | null;
 }
 
 /**
@@ -83,6 +84,7 @@ export async function sendChat(
   let text = "";
   let convId: string | null = conversationId ?? null;
   const toolCalls: ToolCallEvent[] = [];
+  let structured: StructuredDemoData | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -114,11 +116,13 @@ export async function sendChat(
           onToken?.(parsed.text);
         } else if (parsed.type === "tool_call") {
           toolCalls.push(parsed);
+        } else if (parsed.type === "structured") {
+          structured = parsed.data;
         }
         onEvent?.(parsed);
       }
     }
   }
 
-  return { conversation_id: convId, text, tool_calls: toolCalls };
+  return { conversation_id: convId, text, tool_calls: toolCalls, structured };
 }

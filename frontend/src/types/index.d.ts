@@ -33,6 +33,10 @@ declare global {
     text?: string;
     newEvents?: ResultCardEventInfo[];
     toolCalls?: ToolCallDisplay[];
+    /** From agent `structured` SSE / voice `structured_data`. */
+    structuredData?: import('../lib/types').StructuredDemoData;
+    /** Voice-only: `stt_structured` from POST /api/voice. */
+    sttStructured?: import('../lib/types').SttNormalizationT;
     /** Set when `state` is `error` — from FastAPI `{ error: { code, message } }`. */
     errorCode?: string;
     errorMessage?: string;
@@ -45,6 +49,8 @@ declare global {
     text?: string;
     newEvents?: ResultCardEventInfo[];
     toolCalls?: ToolCallDisplay[];
+    structuredData?: import('../lib/types').StructuredDemoData;
+    sttStructured?: import('../lib/types').SttNormalizationT;
     errorCode?: string;
     errorMessage?: string;
     httpStatus?: number;

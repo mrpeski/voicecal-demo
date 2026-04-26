@@ -95,9 +95,12 @@ class Settings(BaseSettings):
     # longer: must match something calendar-related).
     abuse_short_message_max_chars: int = 120
 
+    # Main agent + auxiliary LLM calls (classifier, compaction, structured parse).
+    agent_model: str = "gpt-5.4-mini"
+
     # Optional: small fast LLM over user text when heuristics did not find a strong calendar signal.
     intent_classifier_enabled: bool = True
-    intent_classifier_model: str = "gpt-4o-mini"
+    intent_classifier_model: str = "gpt-5.4-mini"
 
     # --- Implicit session compaction (OpenAI Agents SQLiteSession) ---
     # When estimated input (history JSON + next user) exceeds
@@ -107,7 +110,7 @@ class Settings(BaseSettings):
     compaction_context_budget_tokens: int = 100_000
     compaction_threshold: float = 0.6
     compaction_keep_last_items: int = 8
-    compaction_summary_model: str = "gpt-4o-mini"
+    compaction_summary_model: str = "gpt-5.4-mini"
 
     # --- Clerk (optional). When True, all /api/* except /health require
     # Authorization: Bearer <Clerk session JWT>. Get issuer + JWKS from the Clerk dashboard.
@@ -117,6 +120,10 @@ class Settings(BaseSettings):
     clerk_issuer: str = ""
     # Example: https://my-app.clerk.accounts.com/.well-known/jwks.json
     clerk_jwks_url: str = ""
+
+    # --- Structured outputs (OpenAI parse) — one extra call after each agent turn ---
+    structured_outputs_enabled: bool = True
+    structured_outputs_model: str = "gpt-5.4-mini"
 
 
 settings = Settings()

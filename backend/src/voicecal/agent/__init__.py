@@ -1,6 +1,7 @@
 from voicecal.agent.runner import (
     AgentEvent,
     DoneEvent,
+    StructuredEvent,
     TokenEvent,
     ToolCallEvent,
     get_session,
@@ -12,6 +13,7 @@ from voicecal.agent.runner import (
 __all__ = [
     "AgentEvent",
     "DoneEvent",
+    "StructuredEvent",
     "TokenEvent",
     "ToolCallEvent",
     "get_session",

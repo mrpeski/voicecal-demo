@@ -11,6 +11,7 @@ def _offline_test_settings() -> None:
     """Keep tests local: in-memory tools and deterministic LLM for API contract tests."""
     settings.mock_providers = True
     settings.mock_llm = True
+    settings.structured_outputs_enabled = False
     settings.intent_classifier_enabled = False
     # Ignore developer .env; API tests have no Authorization header and expect unauthenticated mode.
     settings.clerk_enabled = False

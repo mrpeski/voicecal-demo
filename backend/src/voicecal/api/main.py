@@ -1,3 +1,4 @@
+import asyncio
 import base64
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
@@ -21,6 +22,7 @@ from voicecal.guardrails import assert_user_text_allows, enforce_request_rate_li
 from voicecal.intent_classifier import require_in_scope_by_classifier
 from voicecal.llm_use_guardrails import assert_voicecal_intended_use
 from voicecal.rag import build_index
+from voicecal.structured import build_stt_structured
 from voicecal.voice import synthesize, transcribe
 
 log = structlog.get_logger()
@@ -209,10 +211,13 @@ async def voice_endpoint(
     assert_voicecal_intended_use(transcript)
     await require_in_scope_by_classifier(transcript)
 
-    # 3. Agent run — SQLiteSession handles history
+    # 3. Agent run — SQLiteSession handles history. STT structured parse runs
+    # in parallel with the agent; it only needs the transcript.
     conv_id = conversation_id or str(uuid4())
     full_text = ""
     tool_calls: list[dict] = []
+    structured_data: dict | None = None
+    stt_task = asyncio.create_task(build_stt_structured(transcript))
 
     try:
         async for event in run_agent(transcript, conv_id):
@@ -220,10 +225,22 @@ async def voice_endpoint(
                 full_text += event.text
             elif event.type == "tool_call":
                 tool_calls.append(event.model_dump())
-            # DoneEvent: ignore
+            elif event.type == "structured":
+                structured_data = event.data
     except Exception as exc:
         log.exception("agent_failed")
-        raise HTTPException(500, f"Agent run failed: {exc}") from exc
+        stt_task.cancel()
+        raise HTTPException(500, f"Agent run failed: {exc!r}") from exc
+
+    stt_structured: dict | None = None
+    try:
+        stt_norm = await stt_task
+        if stt_norm is not None:
+            stt_structured = stt_norm.model_dump(mode="json")
+    except asyncio.CancelledError:
+        pass
+    except Exception:
+        log.exception("stt_structured_await_failed")
 
     response_text = full_text.strip()
     if not response_text:
@@ -242,6 +259,8 @@ async def voice_endpoint(
         "response_text": response_text,
         "audio_base64": base64.b64encode(audio_out).decode(),
         "tool_calls": tool_calls,
+        "structured_data": structured_data,
+        "stt_structured": stt_structured,
     }
 
 
