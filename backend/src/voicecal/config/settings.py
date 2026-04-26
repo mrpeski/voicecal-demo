@@ -99,5 +99,15 @@ class Settings(BaseSettings):
     intent_classifier_enabled: bool = True
     intent_classifier_model: str = "gpt-4o-mini"
 
+    # --- Implicit session compaction (OpenAI Agents SQLiteSession) ---
+    # When estimated input (history JSON + next user) exceeds
+    # `compaction_context_budget_tokens * compaction_threshold`, older history is
+    # summarized and replaced with a single user message + last N raw items.
+    session_compaction_enabled: bool = True
+    compaction_context_budget_tokens: int = 100_000
+    compaction_threshold: float = 0.6
+    compaction_keep_last_items: int = 8
+    compaction_summary_model: str = "gpt-4o-mini"
+
 
 settings = Settings()

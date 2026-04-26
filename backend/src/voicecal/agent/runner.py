@@ -20,6 +20,7 @@ from agents import Agent, Runner, SQLiteSession, trace
 from openai.types.responses import ResponseTextDeltaEvent
 from pydantic import BaseModel
 
+from voicecal.agent.session_compaction import maybe_compact_session
 from voicecal.agent.tools import (
     TOOLS,
     create_event_impl,
@@ -379,6 +380,7 @@ async def run_agent(
 
     agent = _build_agent(instructions)
     session = get_session(conversation_id)
+    await maybe_compact_session(session, user_message)
 
     # trace() groups the LLM calls, tool calls, and handoffs from this turn
     # into one workflow in the OpenAI traces dashboard. group_id lets you
