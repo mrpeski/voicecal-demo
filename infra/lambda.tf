@@ -58,6 +58,11 @@ resource "aws_lambda_function" "api" {
       # into list[str]). Star fallback keeps preflights working when
       # cors_allow_origin is "*".
       { CORS_ORIGINS = jsonencode([var.cors_allow_origin]) },
+      var.clerk_enabled ? {
+        CLERK_ENABLED  = "true"
+        CLERK_ISSUER   = var.clerk_issuer
+        CLERK_JWKS_URL = var.clerk_jwks_url
+      } : {},
     )
   }
 

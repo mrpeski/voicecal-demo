@@ -88,7 +88,8 @@ jobs:
 
       - name: Build
         env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_API_BASE_URL:             ${{ vars.VITE_API_BASE_URL }}
+          VITE_CLERK_PUBLISHABLE_KEY:    ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: pnpm build
 
       - uses: aws-actions/configure-aws-credentials@v4

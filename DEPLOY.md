@@ -80,6 +80,13 @@ Lambda env vars):
 - `CLOUDFRONT_DISTRIBUTION_ID` — `cloudfront_distribution_id` output. Set this so the Deploy workflow invalidates the cache after each frontend release.
 - `VITE_API_BASE_URL` — API Gateway endpoint (no trailing slash), `api_url` output. Format: `https://<id>.execute-api.<region>.amazonaws.com`
 - `CORS_ALLOW_ORIGIN` (optional) — defaults to `*`; tighten to the CloudFront URL (`frontend_url` output, e.g. `https://dxxxxxxxx.cloudfront.net`) after first deploy
+- **Clerk (optional)** — same app as local `VITE_CLERK_PUBLISHABLE_KEY` / `CLERK_*` in `backend/.env.example`:
+  - `VITE_CLERK_PUBLISHABLE_KEY` — baked into the frontend at **Deploy** build time
+  - `CLERK_ENABLED` — set to the literal string `true` to turn on API JWT checks (Terraform → Lambda env)
+  - `CLERK_ISSUER` — Clerk **Frontend API** URL (no path), e.g. `https://xxx.clerk.accounts.com`
+  - `CLERK_JWKS_URL` — same host + `/.well-known/jwks.json`
+
+After adding or changing Clerk vars, run **Terraform / apply** so Lambda picks up `CLERK_*`, then **Deploy** so the SPA gets the publishable key.
 
 ### 4. Tighten CORS
 

@@ -15,3 +15,8 @@ secret_env_vars = {
   GOOGLE_CLIENT_SECRET = "..."
   GOOGLE_REFRESH_TOKEN = "..."
 }
+
+# Optional Clerk (match GitHub Actions vars CLERK_* and frontend VITE_CLERK_PUBLISHABLE_KEY)
+# clerk_enabled   = true
+# clerk_issuer    = "https://your-instance.clerk.accounts.com"
+# clerk_jwks_url  = "https://your-instance.clerk.accounts.com/.well-known/jwks.json"

@@ -51,6 +51,27 @@ variable "cors_allow_origin" {
   description = "Set to your S3 website URL after the first apply, then re-apply."
 }
 
+# Clerk (optional). When clerk_enabled is true, Lambda gets CLERK_* so FastAPI can
+# verify Authorization: Bearer session JWTs. Set matching VITE_CLERK_PUBLISHABLE_KEY
+# in the Deploy workflow for the frontend.
+variable "clerk_enabled" {
+  type        = bool
+  default     = false
+  description = "Enable Clerk JWT verification on /api/* (requires issuer + JWKS URL)."
+}
+
+variable "clerk_issuer" {
+  type        = string
+  default     = ""
+  description = "Clerk Frontend API URL (JWT iss), e.g. https://xxx.clerk.accounts.com"
+}
+
+variable "clerk_jwks_url" {
+  type        = string
+  default     = ""
+  description = "Clerk JWKS URL, e.g. https://xxx.clerk.accounts.com/.well-known/jwks.json"
+}
+
 data "aws_caller_identity" "me" {}
 
 resource "random_id" "s" {

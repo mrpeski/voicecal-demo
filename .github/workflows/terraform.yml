@@ -39,6 +39,9 @@ jobs:
       TF_INPUT: "0"
       TF_VAR_aws_region:        ${{ vars.AWS_REGION }}
       TF_VAR_cors_allow_origin: ${{ vars.CORS_ALLOW_ORIGIN || '*' }}
+      TF_VAR_clerk_enabled:     ${{ vars.CLERK_ENABLED == 'true' }}
+      TF_VAR_clerk_issuer:     ${{ vars.CLERK_ISSUER }}
+      TF_VAR_clerk_jwks_url:    ${{ vars.CLERK_JWKS_URL }}
     steps:
       - name: Guard destroy
         if: github.event.inputs.action == 'destroy' && github.event.inputs.confirm != 'destroy'
