@@ -20,6 +20,39 @@ FastAPI (agent loop + tools + errors)
   └─ Eval harness against golden scenarios
 ```
 
+## Rubric alignment & technology breakdown
+
+### Stack by layer
+
+| Layer | Technologies |
+| --- | --- |
+| **UI** | React 18, TypeScript (strict), Tailwind CSS, Vite |
+| **API & streaming** | FastAPI, Server-Sent Events (`/api/chat`, `/api/eval`), `multipart` voice uploads |
+| **Agent & LLM** | Anthropic SDK, OpenAI Agents (`Runner.run_streamed`), Pydantic v2 tool inputs / structured outputs |
+| **Voice** | OpenAI Whisper (STT), OpenAI TTS |
+| **Calendar & RAG** | Google Calendar API (`google-api-python-client`), ChromaDB + OpenAI embeddings |
+| **Quality & ops** | Ruff, pytest + pytest-asyncio + httpx, structlog (JSON), GitHub Actions (checks + deploy to AWS) |
+
+### How each rubric area is covered
+
+| Area | Criterion | How VoiceCal addresses it |
+| --- | --- | --- |
+| **Technical depth** | Problem selection & scope | Narrow capstone scope: one user, Google Calendar only, synchronous agent loop—realistic agentic demo without product-scope creep (auth providers, microservices, DB). |
+| | Architecture & design choices | Single backend + SPA; calendar and RAG behind provider/tool boundaries; explicit timezones (Pydantic + settings); SSE for progressive agent visibility. |
+| | Prompt & model interaction quality | Typed tool schemas with `Field` descriptions; guardrails on chat; model calls tools with validated args; optional session compaction for long threads. |
+| | Orchestration & control flow | `run_agent` coordinates streaming, tool execution, and persistence; max-iteration style limits; eval harness reuses the same agent path against a mock calendar. |
+| **Engineering practices** | Repository & CI | Git on GitHub; workflows for deploy and infrastructure; formatter/linter (Ruff) and tests documented in **Checks**. |
+| | Code quality | `voicecal` package split (`api/`, `agent/`, `core/`, tools, RAG); async endpoints; shared error types and dependency wiring. |
+| | Logging & error handling | `structlog` JSON logging; typed `AppError` hierarchy + FastAPI exception handlers returning consistent `{ error: { code, message } }` envelopes. |
+| | Unit / integration tests | `pytest` suite covering API, tools, guardrails, session compaction, and classifier behavior (`backend/tests/`). |
+| | Observability | OpenAI Agents SDK: `trace()` wraps each turn so runs appear grouped in the **OpenAI traces** dashboard; `Runner.run_streamed` events drive inspection of model steps and tool use alongside app-level logs. |
+| **Production readiness** | Solution feasibility | End-to-end paths for chat, voice, calendar tools, and RAG against real APIs (keys + OAuth token as documented). |
+| | Evaluation strategy | `eval/golden.jsonl` scenarios; `voicecal.eval` module and `/api/eval` SSE for live pass/fail feedback against deterministic mock calendar behavior. |
+| | Deployment | CI/CD deploy workflow: container to ECR, Lambda image update, frontend `pnpm build` sync to S3 + CloudFront invalidation (see `.github/workflows/deploy.yml`). |
+| **Presentation** | User interface | Dark, projector-friendly UI: chat with streaming text, inline tool states, event cards, voice control, eval panel. |
+| | Demo quality | Scripted **Demo Flow** below; eval panel as a repeatable safety net; voice + text + RAG moments in one linear story. |
+| | Communication | This README (architecture, diagrams, rubric table), runbook-style local and check commands, and an explicit demo sequence. |
+
 ### Mermaid diagrams
 
 Render these in GitHub, VS Code, or [mermaid.live](https://mermaid.live).
