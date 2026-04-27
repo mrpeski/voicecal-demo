@@ -1,6 +1,6 @@
-# VoiceCal Demo
+# VoiceCal
 
-VoiceCal is a demo calendar assistant that supports typed chat, voice input/output, tool-calling for calendar actions, and a live eval panel.
+VoiceCal is a voice calendar assistant that supports typed chat, voice input/output, tool-calling for calendar actions, and a live eval panel.
 
 ## Architecture
 
