@@ -2,9 +2,8 @@ name: Deploy
 
 on:
   workflow_dispatch:
-  # Uncomment to deploy on push to main once AWS secrets/vars are configured.
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: deploy-${{ github.ref }}
