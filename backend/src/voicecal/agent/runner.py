@@ -62,7 +62,13 @@ Rules:
 - For update_event, ALWAYS include title/start/end/attendees keys.
   Use null for unchanged values.
 - Do not call list_events repeatedly with the same window.
-  If nothing matches, ask one brief follow-up question and stop."""
+- An empty list from list_events is a valid result. Report it plainly
+  (e.g. "Your calendar was empty that week — nothing scheduled.") and,
+  when the user asked for a summary or review, briefly note what that
+  implies (free time, no recurring commitments). Do not refuse or say
+  you can't help; an empty calendar is information, not an error.
+- Only ask a follow-up question if the user's request itself is
+  ambiguous — not because a tool returned no rows."""
 
 
 class TokenEvent(BaseModel):

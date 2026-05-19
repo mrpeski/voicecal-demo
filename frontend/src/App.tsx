@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
 import { COLORS, TWEAK_DEFAULTS } from './constants';
 import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
@@ -49,23 +49,31 @@ export default function App({ getToken, userButton }: AppProps = {}) {
     applyTheme(tweaks.darkMode, tweaks.accentHue);
   }, [tweaks.darkMode, tweaks.accentHue]);
 
-  // Boot fetch: pull events from the backend on mount and merge into local state.
-  useEffect(() => {
-    try { localStorage.removeItem('vc_events2'); } catch { /* ignore */ }
-    const ctrl = new AbortController();
-    fetchEvents(ctrl.signal, getToken)
-      .then((backendEvents) => {
+  // Reload events from the backend (source of truth = Google Calendar via /api/events).
+  // Replaces local state wholesale so any divergence after create/update is reconciled.
+  const reloadEvents = useCallback(
+    async (signal?: AbortSignal) => {
+      try {
+        const backendEvents = await fetchEvents(signal, getToken);
         const mapped = backendEvents
           .map((ev) => toolOutputToLocalEvent(JSON.stringify(ev)))
           .filter((e): e is VoiceCalEvent => e !== null);
         setEvents(mapped);
-      })
-      .catch((err) => {
+      } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;
-        console.warn('boot fetch /api/events failed', err);
-      });
+        console.warn('reload /api/events failed', err);
+      }
+    },
+    [getToken],
+  );
+
+  // Boot fetch: pull events from the backend on mount and merge into local state.
+  useEffect(() => {
+    try { localStorage.removeItem('vc_events2'); } catch { /* ignore */ }
+    const ctrl = new AbortController();
+    void reloadEvents(ctrl.signal);
     return () => ctrl.abort();
-  }, [getToken]);
+  }, [reloadEvents]);
 
   // Boot: refresh RAG index so semantic search isn't answering from stale vectors.
   // Fire exactly once per page load — getToken identity can change across renders.
@@ -128,6 +136,12 @@ export default function App({ getToken, userButton }: AppProps = {}) {
       structuredData: result.structured_data ?? undefined,
       sttStructured: result.stt_structured ?? undefined,
     });
+    const mutated = result.tool_calls.some(
+      (tc) =>
+        tc.status === 'done' &&
+        (tc.name === 'create_event' || tc.name === 'update_event' || tc.name === 'delete_event'),
+    );
+    if (mutated) void reloadEvents();
   }
 
   function toResultCard(result: VoiceCalQueryResult): ResultCardResult | undefined {
@@ -360,11 +374,13 @@ export default function App({ getToken, userButton }: AppProps = {}) {
       if (result.conversation_id) setConversationId(result.conversation_id);
 
       // Sync local events from any successful create/update tool calls.
+      let mutated = false;
       for (const tc of result.tool_calls) {
         if (tc.status !== 'done' || !tc.result) continue;
         if (tc.name === 'create_event') {
           const local = toolOutputToLocalEvent(tc.result);
           if (local) setEvents((list) => [...list.filter((e) => e.id !== local.id), local]);
+          mutated = true;
         } else if (tc.name === 'update_event') {
           const local = toolOutputToLocalEvent(tc.result);
           if (local) {
@@ -374,8 +390,13 @@ export default function App({ getToken, userButton }: AppProps = {}) {
                 : [...list, local],
             );
           }
+          mutated = true;
+        } else if (tc.name === 'delete_event') {
+          mutated = true;
         }
       }
+      // After any calendar mutation, reconcile with the backend (source of truth).
+      if (mutated) void reloadEvents();
 
       setActiveResult({
         state: 'done',
