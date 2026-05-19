@@ -40,69 +40,6 @@ export interface TweakDefaults {
   darkMode: boolean;
 }
 
-// ── Helper for initial event seed dates ──────────────────────────────────
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const tomorrowStr = () => {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
-};
-const offsetStr = (n: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-
-// ── Seed events shown on first load ──────────────────────────────────────
-export interface CalendarEvent {
-  id: string;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  description: string;
-  colorIndex: number;
-}
-
-export const INITIAL_EVENTS: CalendarEvent[] = [
-  {
-    id: 'e1',
-    title: 'Team Standup',
-    date: todayStr(),
-    startTime: '09:00',
-    endTime: '09:30',
-    description: '',
-    colorIndex: 0,
-  },
-  {
-    id: 'e2',
-    title: 'Deep Work',
-    date: todayStr(),
-    startTime: '10:00',
-    endTime: '12:00',
-    description: 'Focus block',
-    colorIndex: 4,
-  },
-  {
-    id: 'e3',
-    title: 'Product Review',
-    date: tomorrowStr(),
-    startTime: '14:00',
-    endTime: '15:00',
-    description: 'Q2 roadmap',
-    colorIndex: 2,
-  },
-  {
-    id: 'e4',
-    title: '1:1 with Manager',
-    date: offsetStr(3),
-    startTime: '11:00',
-    endTime: '11:30',
-    description: '',
-    colorIndex: 0,
-  },
-];
-
 // ── Preset prompt groups for Plan view ───────────────────────────────────
 export interface PromptItem {
   label: string;

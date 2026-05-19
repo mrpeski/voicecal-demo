@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
-import { COLORS, INITIAL_EVENTS, TWEAK_DEFAULTS } from './constants';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction, type ReactNode } from 'react';
+import { COLORS, TWEAK_DEFAULTS } from './constants';
 import { todayStr } from './utils';
 import { applyTheme } from './utils/theme';
 import usePersistentState from './hooks/usePersistentState';
 import { useVoiceInteraction } from './hooks/useVoiceInteraction';
 import { resumeAudioFromUserGesture } from './lib/audioPlayback';
-import { clearConversation, compactConversation, fetchEvents, sendChat } from './lib/chatApi';
+import { clearConversation, compactConversation, fetchEvents, refreshRagIndex, sendChat } from './lib/chatApi';
 import { ApiError } from './lib/apiError';
 import type { VoiceResult } from './lib/types';
 
@@ -30,7 +30,7 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   const [tweaks, setTweaks] = usePersistentState<VoiceCalTweakSettings>('vc_tweaks3', TWEAK_DEFAULTS, {
     mergeDefaults: true,
   });
-  const [events, setEvents] = usePersistentState<VoiceCalEvent[]>('vc_events2', INITIAL_EVENTS as VoiceCalEvent[]);
+  const [events, setEvents] = useState<VoiceCalEvent[]>([]);
   const [mode, setMode] = usePersistentState<Mode>('vc_mode', 'zen');
 
   // ── Ephemeral UI state ──────────────────────────────────────────────────
@@ -51,24 +51,31 @@ export default function App({ getToken, userButton }: AppProps = {}) {
 
   // Boot fetch: pull events from the backend on mount and merge into local state.
   useEffect(() => {
+    try { localStorage.removeItem('vc_events2'); } catch { /* ignore */ }
     const ctrl = new AbortController();
     fetchEvents(ctrl.signal, getToken)
       .then((backendEvents) => {
         const mapped = backendEvents
           .map((ev) => toolOutputToLocalEvent(JSON.stringify(ev)))
           .filter((e): e is VoiceCalEvent => e !== null);
-        if (!mapped.length) return;
-        setEvents((list) => {
-          const byId = new Map(list.map((e) => [e.id, e]));
-          for (const ev of mapped) byId.set(ev.id, ev);
-          return Array.from(byId.values());
-        });
+        setEvents(mapped);
       })
       .catch((err) => {
         if ((err as { name?: string })?.name === 'AbortError') return;
         console.warn('boot fetch /api/events failed', err);
       });
     return () => ctrl.abort();
+  }, [getToken]);
+
+  // Boot: refresh RAG index so semantic search isn't answering from stale vectors.
+  // Fire exactly once per page load — getToken identity can change across renders.
+  const ragRefreshedRef = useRef(false);
+  useEffect(() => {
+    if (ragRefreshedRef.current) return;
+    ragRefreshedRef.current = true;
+    refreshRagIndex(undefined, getToken)
+      .then(({ indexed }) => console.info(`rag refreshed: ${indexed} events indexed`))
+      .catch((err) => console.warn('rag refresh failed', err));
   }, [getToken]);
 
   // ── Edit-mode message bridge (parent page integration) ─────────────────

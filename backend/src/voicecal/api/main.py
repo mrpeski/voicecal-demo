@@ -279,6 +279,26 @@ async def voice_endpoint(
     }
 
 
+_rag_refresh_lock = asyncio.Lock()
+
+
+@app.post("/api/rag/refresh")
+async def rag_refresh(_user_id: str = Depends(require_clerk_user_id)):
+    """Rebuild the RAG index from the current calendar. Call before a demo if stale."""
+    from voicecal.rag import service as rag_svc
+
+    async with _rag_refresh_lock:
+        try:
+            rag_svc._chroma.delete_collection("calendar_history")
+        except Exception:
+            # Already gone (concurrent call, fresh process, etc.) — fine.
+            log.info("rag_refresh_delete_skipped")
+        rag_svc._col = rag_svc._chroma.get_or_create_collection("calendar_history")
+        n = await build_index(force=True)
+    log.info("rag_refresh_complete", indexed=n)
+    return {"indexed": n}
+
+
 @app.post("/api/_debug/reindex")
 async def reindex(
     force: bool = True,

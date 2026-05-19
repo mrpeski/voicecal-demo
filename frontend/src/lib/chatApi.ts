@@ -127,6 +127,21 @@ export async function sendChat(
   return { conversation_id: convId, text, tool_calls: toolCalls, structured };
 }
 
+export async function refreshRagIndex(
+  signal?: AbortSignal,
+  getToken?: () => Promise<string | null>,
+): Promise<{ indexed: number }> {
+  const res = await fetch(apiUrl("/api/rag/refresh"), {
+    method: "POST",
+    signal,
+    headers: await withAuthHeaders(getToken),
+  });
+  if (!res.ok) {
+    throw await toApiError(res, "RAG refresh failed");
+  }
+  return (await res.json()) as { indexed: number };
+}
+
 export async function clearConversation(
   conversationId: string,
   getToken?: () => Promise<string | null>,

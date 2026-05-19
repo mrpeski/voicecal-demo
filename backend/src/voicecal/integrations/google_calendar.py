@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from functools import lru_cache
 from pathlib import Path
+
+# googleapiclient / httplib2 share a single TLS connection per service object
+# and are NOT thread-safe. Concurrent calls from asyncio.to_thread workers
+# corrupt the TLS record layer (SSL errors, read timeouts). Serialize all
+# calls behind one lock — slower under load, but correct, and fine for the
+# demo's traffic pattern.
+_gcal_lock = threading.Lock()
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -67,20 +75,21 @@ def _get_service():
 
 async def list_events(time_min: str, time_max: str) -> list[dict]:
     def _call():
-        return (
-            _get_service()
-            .events()
-            .list(
-                calendarId="primary",
-                timeMin=time_min,
-                timeMax=time_max,
-                singleEvents=True,
-                orderBy="startTime",
-                timeZone=settings.user_timezone,
+        with _gcal_lock:
+            return (
+                _get_service()
+                .events()
+                .list(
+                    calendarId="primary",
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    singleEvents=True,
+                    orderBy="startTime",
+                    timeZone=settings.user_timezone,
+                )
+                .execute()
+                .get("items", [])
             )
-            .execute()
-            .get("items", [])
-        )
 
     return await asyncio.to_thread(_call)
 
@@ -97,23 +106,25 @@ async def create_event(
         }
         if description:
             body["description"] = description
-        return _get_service().events().insert(calendarId="primary", body=body).execute()
+        with _gcal_lock:
+            return _get_service().events().insert(calendarId="primary", body=body).execute()
 
     return await asyncio.to_thread(_call)
 
 
 async def update_event(event_id: str, changes: dict) -> dict:
     def _call():
-        svc = _get_service()
-        ev = svc.events().get(calendarId="primary", eventId=event_id).execute()
-        if "title" in changes:
-            ev["summary"] = changes["title"]
-        if "start" in changes:
-            ev["start"] = {"dateTime": changes["start"], "timeZone": settings.user_timezone}
-        if "end" in changes:
-            ev["end"] = {"dateTime": changes["end"], "timeZone": settings.user_timezone}
-        if "attendees" in changes:
-            ev["attendees"] = [{"email": e} for e in changes["attendees"]]
-        return svc.events().update(calendarId="primary", eventId=event_id, body=ev).execute()
+        with _gcal_lock:
+            svc = _get_service()
+            ev = svc.events().get(calendarId="primary", eventId=event_id).execute()
+            if "title" in changes:
+                ev["summary"] = changes["title"]
+            if "start" in changes:
+                ev["start"] = {"dateTime": changes["start"], "timeZone": settings.user_timezone}
+            if "end" in changes:
+                ev["end"] = {"dateTime": changes["end"], "timeZone": settings.user_timezone}
+            if "attendees" in changes:
+                ev["attendees"] = [{"email": e} for e in changes["attendees"]]
+            return svc.events().update(calendarId="primary", eventId=event_id, body=ev).execute()
 
     return await asyncio.to_thread(_call)
