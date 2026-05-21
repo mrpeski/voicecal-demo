@@ -488,18 +488,31 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   };
 
   // ── Derived: upcoming events ────────────────────────────────────────────
-  const upcomingEvents = useMemo(
-    () =>
-      [...events]
-        .sort((a, b) =>
-          a.date !== b.date
-            ? a.date.localeCompare(b.date)
-            : (a.startTime || '').localeCompare(b.startTime || '')
-        )
-        .filter((e) => e.date >= todayStr())
-        .slice(0, 8),
-    [events]
-  );
+  // Tick `now` once a minute so the upcoming list drops events as they end
+  // throughout the day (date-only filtering would only roll over at midnight).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const upcomingEvents = useMemo(() => {
+    const cutoff = now;
+    const isUpcoming = (e: VoiceCalEvent) => {
+      const time = e.endTime || e.startTime;
+      if (!time) return e.date >= todayStr();
+      const ms = Date.parse(`${e.date}T${time}`);
+      return Number.isNaN(ms) ? e.date >= todayStr() : ms >= cutoff;
+    };
+    return [...events]
+      .sort((a, b) =>
+        a.date !== b.date
+          ? a.date.localeCompare(b.date)
+          : (a.startTime || '').localeCompare(b.startTime || ''),
+      )
+      .filter(isUpcoming)
+      .slice(0, 8);
+  }, [events, now]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
