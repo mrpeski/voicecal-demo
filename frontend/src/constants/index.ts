@@ -1,6 +1,10 @@
 import { MONDAY_WORKFLOW, type MondayWorkflowId } from './mondayWorkflow';
+import { WEEKLY_REVIEW_WORKFLOW, type WeeklyReviewWorkflowId } from './weeklyReviewWorkflow';
 
 export { MONDAY_WORKFLOW, type MondayWorkflowId } from './mondayWorkflow';
+export { WEEKLY_REVIEW_WORKFLOW, type WeeklyReviewWorkflowId } from './weeklyReviewWorkflow';
+
+export type WorkflowId = MondayWorkflowId | WeeklyReviewWorkflowId;
 
 // ── Color palette for event dots ─────────────────────────────
 export const COLORS = [
@@ -46,7 +50,7 @@ export interface PromptItem {
   /** Empty when `workflow` opens the Monday guided stepper instead of sending text. */
   prompt: string;
   /** When set, Plan view opens a guided stepper; prompt is not sent. */
-  workflow?: MondayWorkflowId;
+  workflow?: WorkflowId;
 }
 
 export interface PromptGroup {
@@ -59,6 +63,7 @@ export const PRESET_GROUPS: PromptGroup[] = [
     label: 'This week',
     items: [
       { label: 'Monday 1h planning', prompt: '', workflow: MONDAY_WORKFLOW },
+      { label: 'Weekly review', prompt: '', workflow: WEEKLY_REVIEW_WORKFLOW },
     ],
   },
   {
@@ -117,7 +122,7 @@ export const PRESET_GROUPS: PromptGroup[] = [
 export interface SmartPrompt {
   label: string;
   prompt: string;
-  workflow?: MondayWorkflowId;
+  workflow?: WorkflowId;
 }
 
 export const SMART_PROMPTS: SmartPrompt[] = [
@@ -125,6 +130,11 @@ export const SMART_PROMPTS: SmartPrompt[] = [
     label: 'Monday 1h planning',
     prompt: '',
     workflow: MONDAY_WORKFLOW,
+  },
+  {
+    label: 'Weekly review',
+    prompt: '',
+    workflow: WEEKLY_REVIEW_WORKFLOW,
   },
   {
     label: 'Plan my evening',

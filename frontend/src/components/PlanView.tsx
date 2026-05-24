@@ -1,8 +1,15 @@
 import { useState, useRef, useMemo } from 'react';
-import { COLORS, MONDAY_WORKFLOW, PRESET_GROUPS, SMART_PROMPTS } from '../constants';
+import {
+  COLORS,
+  MONDAY_WORKFLOW,
+  PRESET_GROUPS,
+  SMART_PROMPTS,
+  WEEKLY_REVIEW_WORKFLOW,
+} from '../constants';
 import { todayStr, timeToMins, formatTime } from '../utils';
 import ResultCard from './ResultCard';
 import MondayPlanningStepper from './MondayPlanningStepper';
+import WeeklyReviewStepper from './WeeklyReviewStepper';
 
 export default function PlanView({
   events,
@@ -16,6 +23,7 @@ export default function PlanView({
   const [customInput, setCustomInput] = useState('');
   const customRef = useRef<HTMLInputElement | null>(null);
   const [mondayWorkflowOpen, setMondayWorkflowOpen] = useState(false);
+  const [weeklyReviewOpen, setWeeklyReviewOpen] = useState(false);
   const agentBusy = result?.state === 'thinking';
 
   // Today's events sorted by start time
@@ -98,6 +106,16 @@ export default function PlanView({
             onSend={onQuery}
             agentBusy={agentBusy}
             defaultEventTime={tweaks.workStart}
+          />
+        )}
+
+        {weeklyReviewOpen && (
+          <WeeklyReviewStepper
+            open={weeklyReviewOpen}
+            onClose={() => setWeeklyReviewOpen(false)}
+            onSend={onQuery}
+            agentBusy={agentBusy}
+            defaultEventTime={tweaks.workEnd}
           />
         )}
 
@@ -215,6 +233,10 @@ export default function PlanView({
                     setMondayWorkflowOpen(true);
                     return;
                   }
+                  if (p.workflow === WEEKLY_REVIEW_WORKFLOW) {
+                    setWeeklyReviewOpen(true);
+                    return;
+                  }
                   onQuery(p.prompt, p.label);
                 }}
                 style={{
@@ -290,6 +312,10 @@ export default function PlanView({
                 onClick={() => {
                   if (item.workflow === MONDAY_WORKFLOW) {
                     setMondayWorkflowOpen(true);
+                    return;
+                  }
+                  if (item.workflow === WEEKLY_REVIEW_WORKFLOW) {
+                    setWeeklyReviewOpen(true);
                     return;
                   }
                   onQuery(item.prompt, item.label);
