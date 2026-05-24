@@ -30,7 +30,7 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   const [tweaks, setTweaks] = usePersistentState<VoiceCalTweakSettings>('vc_tweaks3', TWEAK_DEFAULTS, {
     mergeDefaults: true,
   });
-  const [events, setEvents] = useState<VoiceCalEvent[]>([]);
+  const [events, setEvents] = usePersistentState<VoiceCalEvent[]>('vc_events2', []);
   const [mode, setMode] = usePersistentState<Mode>('vc_mode', 'zen');
 
   // ── Ephemeral UI state ──────────────────────────────────────────────────
@@ -41,6 +41,7 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   const [evalOpen, setEvalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [typeRequest, setTypeRequest] = useState<{ value: string; nonce: number } | null>(null);
+  const [eventsRefreshPending, setEventsRefreshPending] = useState(true);
 
   // ── Voice I/O ───────────────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export default function App({ getToken, userButton }: AppProps = {}) {
   }, [tweaks.darkMode, tweaks.accentHue]);
 
   // Reload events from the backend (source of truth = Google Calendar via /api/events).
-  // Replaces local state wholesale so any divergence after create/update is reconciled.
+  // Replaces local state wholesale and updates localStorage through the persistent setter.
   const reloadEvents = useCallback(
     async (signal?: AbortSignal) => {
       try {
@@ -62,14 +63,15 @@ export default function App({ getToken, userButton }: AppProps = {}) {
       } catch (err) {
         if ((err as { name?: string })?.name === 'AbortError') return;
         console.warn('reload /api/events failed', err);
+      } finally {
+        if (!signal?.aborted) setEventsRefreshPending(false);
       }
     },
     [getToken],
   );
 
-  // Boot fetch: pull events from the backend on mount and merge into local state.
+  // Boot fetch: hydrate from localStorage immediately, then refresh from the backend.
   useEffect(() => {
-    try { localStorage.removeItem('vc_events2'); } catch { /* ignore */ }
     const ctrl = new AbortController();
     void reloadEvents(ctrl.signal);
     return () => ctrl.abort();
@@ -487,9 +489,6 @@ export default function App({ getToken, userButton }: AppProps = {}) {
     updateTweak(key, value as VoiceCalTweakSettings[K]);
   };
 
-  // ── Derived: upcoming events ────────────────────────────────────────────
-  // Tick `now` once a minute so the upcoming list drops events as they end
-  // throughout the day (date-only filtering would only roll over at midnight).
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -510,9 +509,9 @@ export default function App({ getToken, userButton }: AppProps = {}) {
           ? a.date.localeCompare(b.date)
           : (a.startTime || '').localeCompare(b.startTime || ''),
       )
-      .filter(isUpcoming)
+      .filter((e) => (eventsRefreshPending ? true : isUpcoming(e)))
       .slice(0, 8);
-  }, [events, now]);
+  }, [events, eventsRefreshPending, now]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { COLORS } from '../constants';
-import { formatDate, formatTime } from '../utils';
+import { formatDate, formatTime, timeToMins, todayStr } from '../utils';
 import { resumeAudioFromUserGesture } from '../lib/audioPlayback';
 import ResultCard from './ResultCard';
 import Waveform from './Waveform';
@@ -21,6 +21,14 @@ export default function ZenView({
   const [input, setInput] = useState('');
   const [upcomingExpanded, setUpcomingExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
+  const now = new Date(clock);
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+
+  useEffect(() => {
+    const id = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!typeRequest) return;
@@ -263,6 +271,8 @@ export default function ZenView({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {(upcomingExpanded ? upcomingEvents : upcomingEvents.slice(0, 1)).map((ev) => {
                 const color = COLORS[ev.colorIndex % COLORS.length];
+                const isPast =
+                  ev.date < todayStr() || (ev.date === todayStr() && !!ev.endTime && timeToMins(ev.endTime) < nowMins);
                 return (
                   <div
                     key={ev.id}
@@ -272,6 +282,7 @@ export default function ZenView({
                       gap: 10,
                       padding: '8px 10px',
                       borderRadius: 8,
+                      opacity: isPast ? 0.4 : 1,
                     }}
                   >
                     <div
